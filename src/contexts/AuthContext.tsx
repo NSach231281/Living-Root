@@ -21,10 +21,10 @@ const PARTNER_EMAILS: Record<string, { role: LRUser["role"]; partnerId: string }
 // ── IMPORTANT: Add each partner's actual Gmail address below too ──────────────
 // e.g. if Nitin uses nitinXXX@gmail.com to sign in with Google, add it here
 const PARTNER_GMAIL_MAP: Record<string, { role: LRUser["role"]; partnerId: string }> = {
-  // "nitinXXX@gmail.com": { role: "admin",   partnerId: "nitin"   },
-  // "shruthi@gmail.com":  { role: "partner", partnerId: "shruthi" },
-  // "sivaXXX@gmail.com":  { role: "partner", partnerId: "siva"    },
-  // "anushaXXX@gmail.com":{ role: "partner", partnerId: "anusha"  },
+  "nitin.sach@gmail.com": { role: "admin",   partnerId: "nitin"   },
+  "shruthi.kapoor@gmail.com":  { role: "partner", partnerId: "shruthi" },
+  "domesticconnexions@gmail.com":  { role: "partner", partnerId: "siva"    },
+  "anushasreekar@gmail.com":{ role: "partner", partnerId: "anusha"  },
 };
 
 interface AuthContextType {
