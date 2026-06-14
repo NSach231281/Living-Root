@@ -12,10 +12,10 @@ import { LRUser } from "../types";
 // Known partners — these get "partner" role automatically on first login
 // Nitin gets "admin"
 const PARTNER_EMAILS: Record<string, { role: LRUser["role"]; partnerId: string }> = {
-  "nitin@livingrootspace.com":   { role: "admin",   partnerId: "nitin"   },
-  "shruthi@livingrootspace.com": { role: "partner",  partnerId: "shruthi" },
-  "siva@livingrootspace.com":    { role: "partner",  partnerId: "siva"    },
-  "anusha@livingrootspace.com":  { role: "partner",  partnerId: "anusha"  },
+  "nitin.sach@gmail.com":   { role: "admin",   partnerId: "nitin"   },
+  "shruthi.kapoor@gmail.com": { role: "partner",  partnerId: "shruthi" },
+  "domesticconnexions@gmail.com":    { role: "partner",  partnerId: "siva"    },
+  "anushasreekar@gmail.com":  { role: "partner",  partnerId: "anusha"  },
 };
 
 // ── IMPORTANT: Add each partner's actual Gmail address below too ──────────────
