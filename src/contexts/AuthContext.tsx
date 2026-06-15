@@ -75,17 +75,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const partnerInfo =
           PARTNER_EMAILS[email] || PARTNER_GMAIL_MAP[email];
 
-        const newUser: LRUser = {
-          uid:       firebaseUser.uid,
+        const newUser: any = {
+          uid:      firebaseUser.uid,
           email,
-          name:      firebaseUser.displayName || "Guest",
-          photoURL:  firebaseUser.photoURL    || undefined,
-          role:      partnerInfo?.role         || "customer",
-          partnerId: partnerInfo?.partnerId    || undefined,
-          tier:      partnerInfo ? undefined   : "primary",
+          name:     firebaseUser.displayName || "Guest",
+          role:     partnerInfo?.role || "customer",
           createdAt: Date.now(),
         };
-
+        if (firebaseUser.photoURL) {
+          newUser.photoURL = firebaseUser.photoURL;
+        }
+        if (partnerInfo?.partnerId) {
+          newUser.partnerId = partnerInfo.partnerId;
+        }
+        if (!partnerInfo) {
+          newUser.tier = "primary";
+        }
+        
         await set(userRef, newUser);
         setUser(newUser);
       }
