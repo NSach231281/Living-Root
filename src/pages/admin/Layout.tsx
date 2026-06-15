@@ -7,12 +7,13 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { to:"overview",   label:"Overview",    icon:LayoutDashboard },
-  { to:"events",     label:"Events",      icon:Ticket          },
-  { to:"financials", label:"Financials",  icon:TrendingUp      },
-  { to:"analytics",  label:"Analytics",   icon:BarChart2       },
-  { to:"feedback",   label:"Feedback",    icon:MessageSquare   },
-  { to:"users",      label:"Users",       icon:Users           },
+  { to:"overview",   label:"Overview",       icon:LayoutDashboard },
+  { to:"assign",     label:"Assign Streams",  icon:Settings        }, // ← ADD THIS LINE
+  { to:"events",     label:"Events",          icon:Ticket          },
+  { to:"financials", label:"Financials",      icon:TrendingUp      },
+  { to:"analytics",  label:"Analytics",       icon:BarChart2       },
+  { to:"feedback",   label:"Feedback",        icon:MessageSquare   },
+  { to:"users",      label:"Users",           icon:Users           },
 ];
 
 export default function AdminLayout() {
