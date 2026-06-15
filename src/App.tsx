@@ -19,13 +19,14 @@ import PartnerDaily    from "./pages/partner/Daily";
 import PartnerCollabs  from "./pages/partner/Collabs";
 
 // Admin pages
-import AdminLayout    from "./pages/admin/Layout";
-import AdminOverview  from "./pages/admin/Overview";
+import AdminLayout     from "./pages/admin/Layout";
+import AdminOverview   from "./pages/admin/Overview";
 import AdminFinancials from "./pages/admin/Financials";
 import AdminAnalytics  from "./pages/admin/Analytics";
 import AdminFeedback   from "./pages/admin/Feedback";
 import AdminEvents     from "./pages/admin/Events";
 import AdminUsers      from "./pages/admin/Users";
+import AdminAssign     from "./pages/admin/Assign";
 
 // Shared
 import LoadingScreen from "./components/ui/LoadingScreen";
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="analytics"    element={<AdminAnalytics />} />
             <Route path="feedback"     element={<AdminFeedback />} />
             <Route path="users"        element={<AdminUsers />} />
+            <Route path="assign"       element={<AdminAssign />} />
           </Route>
 
           {/* Catch-all */}
