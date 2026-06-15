@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as fbSignOut,
   User,
 } from "firebase/auth";
@@ -46,6 +47,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect error:", error);
+    });
+  }, []);
+  
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setFbUser(null);
@@ -88,9 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsub();
   }, []);
-
+  
   const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    await signInWithRedirect(auth, googleProvider);
   };
 
   const signOut = async () => {
