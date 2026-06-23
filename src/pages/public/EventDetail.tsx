@@ -100,6 +100,14 @@ export default function EventDetail() {
             </div>
             <div className="bg-brand-sand rounded-2xl p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-brand-muted mb-1">Price per person</p>
+              {event.originalPrice && event.originalPrice > event.price && (
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-brand-muted text-base line-through">₹{event.originalPrice}</span>
+                  <span className="bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {Math.round(((event.originalPrice - event.price) / event.originalPrice) * 100)}% OFF
+                  </span>
+                </div>
+              )}
               <p className="font-serif text-3xl font-bold text-brand-earth mb-4">₹{event.price}</p>
               {step === "detail" && (
                 <button onClick={() => { if (!user) navigate("/login"); else setStep("form"); }}
