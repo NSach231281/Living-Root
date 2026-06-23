@@ -21,6 +21,7 @@ export interface Event {
   date:        string;
   time:        string;
   price:       number;
+  originalPrice: number; // ser higher than price to show a strikethrough discount
   seatsTotal:  number;
   seatsLeft:   number;
   vibes:       string[];
