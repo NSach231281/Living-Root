@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Public pages
 import Landing     from "./pages/public/Landing";
+import Membership  from "./pages/public/Membership";
 import Events      from "./pages/public/Events";
 import EventDetail from "./pages/public/EventDetail";
 import Login       from "./pages/Login";
@@ -72,6 +73,7 @@ export default function App() {
         <Routes>
           {/* Public */}
           <Route path="/"         element={<Landing />} />
+          <Route path="/membership" element={<Membership />} />
           <Route path="/events"   element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/login"    element={<Login />} />
