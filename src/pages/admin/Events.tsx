@@ -8,7 +8,7 @@ const STREAMS = ["kids","yoga","senior","social","events_in","members","offsite"
 const inr = (v: number) => "₹" + Math.round(v).toLocaleString("en-IN");
 
 const BLANK_EVENT = {
-  title:"", description:"", date:"", time:"", price:0,
+  title:"", description:"", date:"", time:"", price:0,originalPrice:0,
   seatsTotal:0, seatsLeft:0, vibes:[] as string[], imageUrl:"",
   audienceType:[] as string[], stream:"social", status:"draft" as const,
 };
@@ -89,7 +89,19 @@ export default function AdminEvents() {
             </div>
             <div><label className="label">Date *</label><input type="date" value={form.date} onChange={e=>setForm((p: any)=>({...p,date:e.target.value}))} className="input"/></div>
             <div><label className="label">Time</label><input type="time" value={form.time} onChange={e=>setForm((p: any)=>({...p,time:e.target.value}))} className="input"/></div>
-            <div><label className="label">Price (₹)</label><input type="number" value={form.price} min={0} onChange={e=>setForm((p: any)=>({...p,price:Number(e.target.value)}))} className="input"/></div>
+            <div>
+              <label className="label">Price (₹) — what the customer pays</label>
+              <input type="number" value={form.price} min={0} onChange={e=>setForm((p: any)=>({...p,price:Number(e.target.value)}))} className="input"/>
+            </div>
+            <div>
+              <label className="label">Original Price (₹) — optional, shows a strikethrough discount</label>
+              <input type="number" value={form.originalPrice||""} min={0} placeholder="Leave blank for no discount badge" onChange={e=>setForm((p: any)=>({...p,originalPrice:Number(e.target.value)}))} className="input"/>
+              {form.originalPrice > form.price && form.price > 0 && (
+                <p className="text-xs text-emerald-600 font-bold mt-1">
+                  Shows as {Math.round(((form.originalPrice - form.price) / form.originalPrice) * 100)}% OFF — ₹{form.originalPrice} → ₹{form.price}
+                </p>
+              )}
+            </div>            
             <div><label className="label">Total seats</label><input type="number" value={form.seatsTotal} min={0} onChange={e=>setForm((p: any)=>({...p,seatsTotal:Number(e.target.value)}))} className="input"/></div>
             <div><label className="label">Image URL</label><input value={form.imageUrl} onChange={e=>setForm((p: any)=>({...p,imageUrl:e.target.value}))} className="input" placeholder="https://images.unsplash.com/…"/></div>
             <div>
