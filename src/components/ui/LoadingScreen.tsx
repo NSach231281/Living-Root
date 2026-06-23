@@ -36,6 +36,7 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8">
+          <Link to="/membership" className="text-sm font-bold uppercase tracking-widest text-brand-clay hover:text-brand-spice transition-colors">Membership</Link>
           <Link to="/events" className="text-sm font-bold uppercase tracking-widest text-brand-clay hover:text-brand-spice transition-colors">Events</Link>
           {user ? (
             <div className="flex items-center gap-4">
@@ -65,6 +66,7 @@ export function Navbar() {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden bg-brand-bone border-t border-brand-border px-6 py-4 flex flex-col gap-4">
+          <Link to="/membership" onClick={() => setOpen(false)} className="text-sm font-bold uppercase tracking-widest text-brand-clay">Membership</Link>
           <Link to="/events" onClick={() => setOpen(false)} className="text-sm font-bold uppercase tracking-widest text-brand-clay">Events</Link>
           {user ? (
             <>
@@ -105,14 +107,24 @@ export function SectionHeader({ eyebrow, title, subtitle }: { eyebrow?: string; 
 // ─── Event card ───────────────────────────────────────────────────────────────
 export function EventCard({ event, onClick }: { event: any; onClick?: () => void }) {
   const seatsPercent = ((event.seatsLeft || 0) / (event.seatsTotal || 1)) * 100;
+  const hasDiscount = event.originalPrice && event.originalPrice > event.price;
+  const pctOff = hasDiscount ? Math.round(((event.originalPrice - event.price) / event.originalPrice) * 100) : 0;
   return (
     <div onClick={onClick} className="card cursor-pointer group hover:-translate-y-1 transition-all duration-300">
       <div className="relative h-48 overflow-hidden">
         <img src={event.imageUrl || "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=800"} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-earth/60 to-transparent" />
+        {hasDiscount && (
+          <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
+            {pctOff}% OFF
+          </span>
+        )}
         <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
           <p className="text-white font-serif text-lg font-bold">{event.title}</p>
-          <span className="bg-brand-spice text-white text-xs font-bold px-3 py-1 rounded-full">₹{event.price}</span>
+          <div className="flex items-center gap-2">
+            {hasDiscount && <span className="text-white/70 text-xs line-through">₹{event.originalPrice}</span>}
+            <span className="bg-brand-spice text-white text-xs font-bold px-3 py-1 rounded-full">₹{event.price}</span>
+          </div>
         </div>
       </div>
       <div className="p-4">
