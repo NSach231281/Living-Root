@@ -91,4 +91,76 @@ export function buildTicketEmail(d: TicketEmailData): { subject: string; html: s
                   </tr>
                 </table>
 
-                <table width="100%" cellpadding="0"
+                <table width="100%" cellpadding="0" cellspacing="0"
+                  style="background:#F5F0E8;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+                  <tr>
+                    <td style="padding:6px 16px 6px 0;border-right:1px solid #D4C4A8;">
+                      <p style="margin:0 0 2px;font-family:sans-serif;font-size:10px;color:#9C8672;text-transform:uppercase;letter-spacing:1.5px;">Date</p>
+                      <p style="margin:0;font-size:15px;font-weight:bold;color:#2C1810;">📅 ${d.eventDate}</p>
+                    </td>
+                    <td style="padding:6px 16px;border-right:1px solid #D4C4A8;">
+                      <p style="margin:0 0 2px;font-family:sans-serif;font-size:10px;color:#9C8672;text-transform:uppercase;letter-spacing:1.5px;">Time</p>
+                      <p style="margin:0;font-size:15px;font-weight:bold;color:#2C1810;">⏰ ${d.eventTime}</p>
+                    </td>
+                    <td style="padding:6px 0 6px 16px;">
+                      <p style="margin:0 0 2px;font-family:sans-serif;font-size:10px;color:#9C8672;text-transform:uppercase;letter-spacing:1.5px;">Venue</p>
+                      <p style="margin:0;font-size:15px;font-weight:bold;color:#2C1810;">📍 ${d.eventVenue}</p>
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="border-top:2px dashed #D4C4A8;margin:0 -32px 24px;position:relative;">
+                  <span style="position:absolute;left:-14px;top:-10px;width:20px;height:20px;background:#F5F0E8;border-radius:50%;display:inline-block;"></span>
+                  <span style="position:absolute;right:-14px;top:-10px;width:20px;height:20px;background:#F5F0E8;border-radius:50%;display:inline-block;"></span>
+                </div>
+
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center">
+                      <p style="margin:0 0 12px;font-family:sans-serif;font-size:11px;color:#9C8672;text-transform:uppercase;letter-spacing:2px;">Scan to verify entry</p>
+                      <a href="${ticketUrl}">
+                        <img src="${qrUrl}" width="130" height="130" alt="Ticket QR Code"
+                          style="border:6px solid #F5F0E8;border-radius:8px;display:block;margin:0 auto;"/>
+                      </a>
+                      <p style="margin:10px 0 0;font-family:sans-serif;font-size:11px;color:#9C8672;">
+                        Or visit: <a href="${ticketUrl}" style="color:#C4622D;">${ticketUrl}</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#2C1810;padding:16px 32px;text-align:center;">
+                <p style="margin:0;font-family:sans-serif;font-size:11px;color:#9C8672;">
+                  📍 Living Root, JP Nagar 5th Phase, Bengaluru · 
+                  <a href="https://wa.me/919845054981" style="color:#D4A843;text-decoration:none;">WhatsApp us</a> for queries
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td align="center" style="padding:20px 0;">
+          <p style="margin:0;font-family:sans-serif;font-size:12px;color:#9C8672;">
+            Questions? Reach out on <a href="https://wa.me/919845054981" style="color:#C4622D;text-decoration:none;">WhatsApp</a> or 
+            <a href="mailto:hello@livingrootspace.com" style="color:#C4622D;text-decoration:none;">email us</a>
+          </p>
+          <p style="margin:6px 0 0;font-family:sans-serif;font-size:11px;color:#D4C4A8;">
+            © Living Root Space, JP Nagar, Bengaluru
+          </p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+  return { subject, html };
+}
