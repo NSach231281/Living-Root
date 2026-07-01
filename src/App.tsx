@@ -6,6 +6,7 @@ import Landing      from "./pages/public/Landing";
 import Membership   from "./pages/public/Membership";
 import Events       from "./pages/public/Events";
 import EventDetail  from "./pages/public/EventDetail";
+// public registration routes
 import Register     from "./pages/public/Register";
 import TicketView   from "./pages/public/TicketView";
 import Login        from "./pages/Login";
