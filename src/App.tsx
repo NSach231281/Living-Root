@@ -53,12 +53,21 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RequireMarketing({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen/>;
+  if (!user)   return <Navigate to="/login" replace/>;
+  if (user.role !== "marketing" && user.role !== "admin") return <Navigate to="/" replace/>;
+  return <>{children}</>;
+}
+
 function PostLoginRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen/>;
   if (!user)   return <Navigate to="/login" replace/>;
-  if (user.role === "admin")   return <Navigate to="/admin"   replace/>;
-  if (user.role === "partner") return <Navigate to="/partner" replace/>;
+  if (user.role === "admin")     return <Navigate to="/admin"   replace/>;
+  if (user.role === "marketing") return <Navigate to="/admin"   replace/>;
+  if (user.role === "partner")   return <Navigate to="/partner" replace/>;
   return <Navigate to="/my" replace/>;
 }
 
@@ -82,14 +91,14 @@ export default function App() {
 
           {/* Partner */}
           <Route path="/partner" element={<RequirePartner><PartnerLayout/></RequirePartner>}>
-            <Route index          element={<Navigate to="revenue" replace/>}/>
+            <Route index           element={<Navigate to="revenue" replace/>}/>
             <Route path="revenue"  element={<PartnerRevenue/>}/>
             <Route path="calendar" element={<PartnerCalendar/>}/>
             <Route path="daily"    element={<PartnerDaily/>}/>
             <Route path="collabs"  element={<PartnerCollabs/>}/>
           </Route>
 
-          {/* Admin */}
+          {/* Admin — full access */}
           <Route path="/admin" element={<RequireAdmin><AdminLayout/></RequireAdmin>}>
             <Route index             element={<Navigate to="overview" replace/>}/>
             <Route path="overview"   element={<AdminOverview/>}/>
@@ -99,6 +108,13 @@ export default function App() {
             <Route path="feedback"   element={<AdminFeedback/>}/>
             <Route path="users"      element={<AdminUsers/>}/>
             <Route path="assign"     element={<AdminAssign/>}/>
+          </Route>
+
+          {/* Marketing — events + feedback only */}
+          <Route path="/marketing" element={<RequireMarketing><AdminLayout/></RequireMarketing>}>
+            <Route index           element={<Navigate to="events" replace/>}/>
+            <Route path="events"   element={<AdminEvents/>}/>
+            <Route path="feedback" element={<AdminFeedback/>}/>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace/>}/>
