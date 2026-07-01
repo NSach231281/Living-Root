@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "partner" | "customer" | "vendor";
+export type UserRole = "admin" | "partner" | "customer" | "vendor" | "marketing";
 
 export type SocialType = "Solo" | "Couple" | "Family" | "Student" | "Professional" | "Senior";
 
