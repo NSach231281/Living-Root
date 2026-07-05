@@ -1,9 +1,5 @@
-// src/pages/partner/Calendar.tsx  (UPDATED)
-// Added: "Upload Schedule" button inside PipelineView
-// — reads the 2-Week Pipeline Excel, shows preview, writes to Firebase in one shot
-// New dependency: npm install xlsx
-
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import * as XLSX from "xlsx";
 import { onValue, ref, set, update } from "firebase/database";
 import { db }        from "../../firebase";
 import { useAuth }   from "../../contexts/AuthContext";
@@ -56,7 +52,6 @@ const fmtDate = (ds: string) => {
 const C = { border:"#DDD9D0", muted:"#7A8690", dark:"#1A2830", bg:"#F7F4ED" };
 const inr = (v: number) => "₹"+(v/100000).toFixed(1)+"L";
 
-// ── Slot name normaliser (handles – vs - and spacing variants) ────────────────
 const SLOT_MAP: Record<string,number> = {
   "7–9 am":0, "7-9 am":0, "7–9am":0,
   "10 am–12 pm":1, "10 am-12 pm":1, "10am–12pm":1, "10am-12pm":1,
@@ -65,7 +60,6 @@ const SLOT_MAP: Record<string,number> = {
 };
 const resolveSlot = (s: string): number => SLOT_MAP[s.toLowerCase().trim()] ?? -1;
 
-// ─────────────────────────────────────────────────────────────────────────────
 export default function PartnerCalendar() {
   const { user, isAdmin } = useAuth();
   const [subTab,      setSubTab]   = useState<"ladder"|"pipeline"|"compare">("ladder");
@@ -102,7 +96,6 @@ export default function PartnerCalendar() {
 
   return (
     <div className="p-6" style={{fontFamily:"ui-sans-serif,system-ui,sans-serif",color:C.dark}}>
-      {/* Sub-tabs */}
       <div style={{display:"flex",gap:0,borderBottom:`2px solid ${C.border}`,marginBottom:18}}>
         {(["ladder","pipeline","compare"] as const).map(t=>(
           <button key={t} onClick={()=>setSubTab(t)}
@@ -113,7 +106,6 @@ export default function PartnerCalendar() {
           </button>
         ))}
       </div>
-
       {subTab==="ladder"   && <LadderView   rungs={RUNGS} selRung={selRung} setSelRung={setSelRung} checklist={checklist} toggleCheck={toggleCheck}/>}
       {subTab==="pipeline" && <PipelineView pipeline={pipeline} myStreams={myStreams} partnerId={user?.partnerId||""} isAdmin={isAdmin} getOwnerIds={getOwnerIds}/>}
       {subTab==="compare"  && <CompareView  pipeline={pipeline} streamData={streamData}/>}
@@ -121,37 +113,29 @@ export default function PartnerCalendar() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PIPELINE VIEW — with Excel upload
-// ─────────────────────────────────────────────────────────────────────────────
 interface ParsedSlot {
-  date:      string;
-  si:        number;
-  slot:      string;
-  streamId:  string;
-  headcount: string;
-  notes:     string;
-  confirmed: boolean;
+  date:string; si:number; slot:string; streamId:string;
+  headcount:string; notes:string; confirmed:boolean;
 }
 
 function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: any) {
-  const [sel,         setSel]     = useState<{date:string;si:number}|null>(null);
-  const [form,        setForm]    = useState({ streamId:"", headcount:"", notes:"", confirmed:false });
-  const [preview,     setPreview] = useState<ParsedSlot[]>([]);
-  const [uploading,   setUploading]= useState(false);
-  const [uploadError, setUploadError]= useState("");
-  const [uploadDone,  setUploadDone]= useState(false);
+  const [sel,setSel]                 = useState<{date:string;si:number}|null>(null);
+  const [form,setForm]               = useState({ streamId:"", headcount:"", notes:"", confirmed:false });
+  const [preview,setPreview]         = useState<ParsedSlot[]>([]);
+  const [uploading,setUploading]     = useState(false);
+  const [uploadError,setUploadError] = useState("");
+  const [uploadDone,setUploadDone]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dates   = useMemo(()=>get14Days(),[]);
   const C2      = { border:"#DDD9D0", muted:"#7A8690", dark:"#1A2830" };
 
-  const canEditCell=(bk: any)=>{
+  const canEditCell=(bk:any)=>{
     if(isAdmin)return true;
     if(!bk?.streamId)return myStreams.length>0;
     const owners=getOwnerIds(bk.streamId);
     return owners.length===0||owners.includes(partnerId);
   };
-  const selectCell=(date: string,si: number)=>{
+  const selectCell=(date:string,si:number)=>{
     const bk=pipeline[date]?.[`s${si}`];
     if(!canEditCell(bk))return;
     setSel({date,si});
@@ -165,212 +149,139 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
     setSel(null);
   };
 
-  // ── Excel upload ────────────────────────────────────────────────────────────
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError("");
-    setUploadDone(false);
-
+  const handleFile=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+    const file=e.target.files?.[0]; if(!file)return;
+    setUploadError(""); setUploadDone(false); setPreview([]);
     try {
-      // Dynamic import so xlsx isn't in the main bundle
-      const XLSX = await import("xlsx");
-      const buffer = await file.arrayBuffer();
-      const wb    = XLSX.read(buffer, { type:"array", cellDates:true });
-
-      // Try named sheet first, fall back to first sheet
-      const sheetName = wb.SheetNames.includes("2-Week Pipeline")
-        ? "2-Week Pipeline"
-        : wb.SheetNames[0];
-      const ws   = wb.Sheets[sheetName];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, dateNF:"yyyy-mm-dd" });
-
-      const parsed: ParsedSlot[] = [];
-
-      for (const row of rows.slice(2)) {   // skip title row + header row
-        if (!row || !row[0]) continue;     // skip empty rows
-
-        const rawDate  = String(row[0] || "").trim();
-        const rawSlot  = String(row[2] || "").trim();
-        const streamId = String(row[3] || "").trim();
-
-        if (!streamId) continue;           // blank stream = skip (don't overwrite)
-        if (!STREAM_LIST.find(s=>s.id===streamId)) {
-          setUploadError(`Unknown stream "${streamId}" — check the Stream column values.`);
+      const buffer=await file.arrayBuffer();
+      const wb=XLSX.read(buffer,{type:"array"});
+      const sheetName=wb.SheetNames.includes("2-Week Pipeline")?"2-Week Pipeline":wb.SheetNames[0];
+      const ws=wb.Sheets[sheetName];
+      const rows:any[][]=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      if(rows.length<3){
+        setUploadError("Sheet appears empty. Make sure you are uploading the correct file.");
+        return;
+      }
+      // Find header row dynamically — look for "Date" in column A
+      let dataStartRow=0;
+      for(let i=0;i<Math.min(rows.length,5);i++){
+        const val=String(rows[i][0]||"").trim().toLowerCase();
+        if(val==="date"){dataStartRow=i+1;break;}
+      }
+      const parsed:ParsedSlot[]=[];
+      for(let ri=dataStartRow;ri<rows.length;ri++){
+        const row=rows[ri];
+        if(!row||row.length<4)continue;
+        const rawDate =String(row[0]||"").trim();
+        const rawSlot =String(row[2]||"").trim();
+        const streamId=String(row[3]||"").trim();
+        if(!rawDate||!streamId)continue;
+        if(!STREAM_LIST.find(s=>s.id===streamId)){
+          setUploadError(`Unknown stream "${streamId}" in row ${ri+1} — valid values: yoga, workshop, social, events_in, events_out, members, kids, senior, offsite`);
           return;
         }
-
-        // Parse date — accepts YYYY-MM-DD or Excel serial
-        let isoDate = "";
-        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-          isoDate = rawDate;
-        } else {
-          try {
-            const d = new Date(rawDate);
-            if (!isNaN(d.getTime())) isoDate = d.toISOString().split("T")[0];
-          } catch {}
-        }
-        if (!isoDate) continue;
-
-        const si = resolveSlot(rawSlot);
-        if (si === -1) continue;
-
-        parsed.push({
-          date:      isoDate,
-          si,
-          slot:      SLOTS[si],
-          streamId,
-          headcount: String(row[4] || "").trim(),
-          notes:     String(row[5] || "").trim(),
-          confirmed: String(row[6] || "").toLowerCase() === "yes",
-        });
+        let isoDate="";
+        if(/^\d{4}-\d{2}-\d{2}$/.test(rawDate)){isoDate=rawDate;}
+        else{try{const d=new Date(rawDate);if(!isNaN(d.getTime()))isoDate=d.toISOString().split("T")[0];}catch{}}
+        if(!isoDate)continue;
+        const si=resolveSlot(rawSlot); if(si===-1)continue;
+        parsed.push({date:isoDate,si,slot:SLOTS[si],streamId,
+          headcount:String(row[4]||"").trim(),
+          notes:String(row[5]||"").trim(),
+          confirmed:String(row[6]||"").toLowerCase()==="yes"});
       }
-
-      if (parsed.length === 0) {
-        setUploadError("No valid rows found. Make sure the Stream column is filled and the sheet name is '2-Week Pipeline'.");
+      if(parsed.length===0){
+        setUploadError(`No valid rows found. Found ${rows.length} total rows, data starts at row ${dataStartRow+1}. Check Stream column has values like yoga, social, workshop.`);
         return;
       }
       setPreview(parsed);
-    } catch (err: any) {
-      setUploadError(`Could not read file: ${err.message}`);
+    } catch(err:any){
+      setUploadError(`File read error: ${err?.message||"Unknown error"}`);
     }
-
-    // Reset file input so same file can be re-uploaded
-    if (fileRef.current) fileRef.current.value = "";
+    if(fileRef.current)fileRef.current.value="";
   };
 
-  const confirmUpload = async () => {
+  const confirmUpload=async()=>{
     setUploading(true);
-    for (const item of preview) {
-      await update(ref(db, `/pipeline/${item.date}/s${item.si}`), {
-        streamId:  item.streamId,
-        headcount: item.headcount,
-        notes:     item.notes,
-        confirmed: item.confirmed,
-        by:        partnerId || "upload",
-      });
+    for(const item of preview){
+      await update(ref(db,`/pipeline/${item.date}/s${item.si}`),
+        {streamId:item.streamId,headcount:item.headcount,notes:item.notes,confirmed:item.confirmed,by:partnerId||"upload"});
     }
-    setPreview([]);
-    setUploading(false);
-    setUploadDone(true);
-    setTimeout(()=>setUploadDone(false), 4000);
+    setPreview([]); setUploading(false); setUploadDone(true);
+    setTimeout(()=>setUploadDone(false),4000);
   };
 
-  const clearPreview = () => {
-    setPreview([]);
-    setUploadError("");
-  };
-
-  // ── Render ──────────────────────────────────────────────────────────────────
-  return (
+  return(
     <div>
-      {/* ── Info bar + Upload button ── */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-        flexWrap:"wrap",gap:8,background:"#fff",padding:"10px 14px",marginBottom:12,
+      {/* Info bar + Upload button */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",
+        gap:8,background:"#fff",padding:"10px 14px",marginBottom:12,
         border:`1px solid ${C2.border}`,borderLeft:`4px solid ${C2.dark}`,borderRadius:4}}>
         <span style={{fontSize:12.5,color:C2.muted}}>
-          {isAdmin ? "Admin view — all streams. Tap any cell to book." :
-           myStreams.length===0 ? "⚠ No streams assigned yet. Ask admin." :
+          {isAdmin?"Admin view — all streams. Tap any cell to book.":
+           myStreams.length===0?"⚠ No streams assigned yet. Ask admin.":
            `Your streams: ${myStreams.map((s:any)=>s.label).join(", ")}. Others are view-only.`}
         </span>
-
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {uploadDone && (
-            <span style={{fontSize:12,color:"#1E6B40",fontWeight:600}}>✅ Schedule uploaded!</span>
-          )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls"
-            style={{display:"none"}}
-            onChange={handleFile}
-          />
-          <button
-            onClick={()=>fileRef.current?.click()}
+          {uploadDone&&<span style={{fontSize:12,color:"#1E6B40",fontWeight:600}}>✅ Schedule uploaded!</span>}
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{display:"none"}} onChange={handleFile}/>
+          <button onClick={()=>fileRef.current?.click()}
             style={{padding:"6px 14px",fontSize:12,fontWeight:600,background:C2.dark,
-              color:"#fff",border:"none",borderRadius:6,cursor:"pointer",
-              display:"flex",alignItems:"center",gap:6}}>
+              color:"#fff",border:"none",borderRadius:6,cursor:"pointer"}}>
             📤 Upload Schedule
           </button>
         </div>
       </div>
 
-      {/* ── Upload error ── */}
-      {uploadError && (
+      {/* Upload error */}
+      {uploadError&&(
         <div style={{background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:6,
-          padding:"10px 14px",marginBottom:12,display:"flex",justifyContent:"space-between",
-          alignItems:"center"}}>
+          padding:"10px 14px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:12.5,color:"#C4322E"}}>⚠ {uploadError}</span>
-          <button onClick={()=>setUploadError("")} style={{background:"none",border:"none",
-            color:"#C4322E",cursor:"pointer",fontWeight:700,fontSize:14}}>✕</button>
+          <button onClick={()=>setUploadError("")} style={{background:"none",border:"none",color:"#C4322E",cursor:"pointer",fontWeight:700,fontSize:14}}>✕</button>
         </div>
       )}
 
-      {/* ── Upload preview panel ── */}
-      {preview.length > 0 && (
-        <div style={{background:"#fff",border:`2px solid #1E6B40`,borderRadius:8,
-          padding:"14px 16px",marginBottom:16}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-            marginBottom:12}}>
+      {/* Upload preview */}
+      {preview.length>0&&(
+        <div style={{background:"#fff",border:"2px solid #1E6B40",borderRadius:8,padding:"14px 16px",marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
             <div>
-              <span style={{fontWeight:700,fontSize:13,color:C2.dark}}>
-                📋 Preview — {preview.length} slots to fill
-              </span>
-              <span style={{fontSize:11.5,color:C2.muted,marginLeft:10}}>
-                Review before confirming. Existing manual bookings will be overwritten.
-              </span>
+              <span style={{fontWeight:700,fontSize:13,color:C2.dark}}>📋 Preview — {preview.length} slots to fill</span>
+              <span style={{fontSize:11.5,color:C2.muted,marginLeft:10}}>Existing bookings will be overwritten.</span>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button onClick={clearPreview}
-                style={{padding:"6px 12px",background:"#fff",color:C2.muted,
-                  border:`1px solid ${C2.border}`,fontSize:12,cursor:"pointer",borderRadius:6}}>
-                Cancel
-              </button>
+              <button onClick={()=>setPreview([])}
+                style={{padding:"6px 12px",background:"#fff",color:C2.muted,border:`1px solid ${C2.border}`,fontSize:12,cursor:"pointer",borderRadius:6}}>Cancel</button>
               <button onClick={confirmUpload} disabled={uploading}
-                style={{padding:"6px 16px",background:"#1E6B40",color:"#fff",border:"none",
-                  fontSize:12,fontWeight:700,cursor:"pointer",borderRadius:6,
-                  opacity:uploading?0.6:1}}>
-                {uploading ? "Uploading…" : `✓ Confirm Upload (${preview.length} slots)`}
+                style={{padding:"6px 16px",background:"#1E6B40",color:"#fff",border:"none",fontSize:12,fontWeight:700,cursor:"pointer",borderRadius:6,opacity:uploading?0.6:1}}>
+                {uploading?"Uploading…":`✓ Confirm Upload (${preview.length} slots)`}
               </button>
             </div>
           </div>
-
-          <div style={{overflowX:"auto",maxHeight:280,overflowY:"auto",
-            border:`1px solid ${C2.border}`,borderRadius:6}}>
+          <div style={{overflowX:"auto",maxHeight:260,overflowY:"auto",border:`1px solid ${C2.border}`,borderRadius:6}}>
             <table style={{borderCollapse:"collapse",width:"100%",fontSize:11.5}}>
               <thead>
                 <tr style={{background:"#F7F4ED",position:"sticky",top:0}}>
                   {["Date","Slot","Stream","Headcount","Notes","Confirmed"].map(h=>(
-                    <th key={h} style={{padding:"6px 10px",textAlign:"left",fontWeight:600,
-                      color:C2.muted,borderBottom:`1px solid ${C2.border}`,whiteSpace:"nowrap"}}>
-                      {h}
-                    </th>
+                    <th key={h} style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:C2.muted,borderBottom:`1px solid ${C2.border}`,whiteSpace:"nowrap"}}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {preview.map((item,i)=>(
-                  <tr key={i} style={{borderBottom:`1px solid ${C2.border}`,
-                    background:i%2===0?"#fff":"#FAFAFA"}}>
+                  <tr key={i} style={{borderBottom:`1px solid ${C2.border}`,background:i%2===0?"#fff":"#FAFAFA"}}>
                     <td style={{padding:"5px 10px",fontWeight:500}}>{item.date}</td>
                     <td style={{padding:"5px 10px",color:C2.muted}}>{item.slot}</td>
                     <td style={{padding:"5px 10px"}}>
-                      <span style={{background:`${SC[item.streamId]?.color}20`,
-                        color:SC[item.streamId]?.color,fontWeight:700,
-                        padding:"2px 8px",borderRadius:4,fontSize:11}}>
-                        {SC[item.streamId]?.label || item.streamId}
+                      <span style={{background:`${SC[item.streamId]?.color}20`,color:SC[item.streamId]?.color,
+                        fontWeight:700,padding:"2px 8px",borderRadius:4,fontSize:11}}>
+                        {SC[item.streamId]?.label||item.streamId}
                       </span>
                     </td>
                     <td style={{padding:"5px 10px",color:C2.muted}}>{item.headcount||"—"}</td>
-                    <td style={{padding:"5px 10px",color:C2.muted,maxWidth:200,
-                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {item.notes||"—"}
-                    </td>
-                    <td style={{padding:"5px 10px"}}>
-                      {item.confirmed
-                        ? <span style={{color:"#1E6B40",fontWeight:700}}>✓ Yes</span>
-                        : <span style={{color:C2.muted}}>—</span>}
-                    </td>
+                    <td style={{padding:"5px 10px",color:C2.muted,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.notes||"—"}</td>
+                    <td style={{padding:"5px 10px"}}>{item.confirmed?<span style={{color:"#1E6B40",fontWeight:700}}>✓ Yes</span>:<span style={{color:C2.muted}}>—</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -379,74 +290,46 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
         </div>
       )}
 
-      {/* ── Pipeline grid ── */}
+      {/* Pipeline grid */}
       <div style={{overflowX:"auto",border:`1px solid ${C2.border}`,background:"#fff",borderRadius:8}}>
         <table style={{borderCollapse:"collapse",minWidth:900}}>
-          <thead>
-            <tr>
-              <th style={{padding:"9px 10px",fontSize:10,fontWeight:600,width:90,
-                textAlign:"left",background:C2.dark,color:"#fff",
-                position:"sticky",left:0,zIndex:2}}>
-                Time slot
+          <thead><tr>
+            <th style={{padding:"9px 10px",fontSize:10,fontWeight:600,width:90,textAlign:"left",background:C2.dark,color:"#fff",position:"sticky",left:0,zIndex:2}}>Time slot</th>
+            {dates.map(d=>{const{day,num,isWknd}=fmtDate(d);return(
+              <th key={d} style={{padding:"6px 3px",fontSize:10,textAlign:"center",minWidth:66,background:isWknd?"#2A3840":C2.dark,color:isWknd?"#F0C040":"#fff"}}>
+                <div style={{fontWeight:700}}>{day}</div><div style={{fontSize:12}}>{num}</div>
               </th>
-              {dates.map(d=>{
-                const {day,num,isWknd}=fmtDate(d);
-                return (
-                  <th key={d} style={{padding:"6px 3px",fontSize:10,textAlign:"center",
-                    minWidth:66,background:isWknd?"#2A3840":C2.dark,
-                    color:isWknd?"#F0C040":"#fff"}}>
-                    <div style={{fontWeight:700}}>{day}</div>
-                    <div style={{fontSize:12}}>{num}</div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
+            );})}
+          </tr></thead>
           <tbody>
             {SLOTS.map((slot,si)=>(
               <tr key={slot} style={{borderBottom:`1px solid ${C2.border}`}}>
-                <td style={{padding:"8px 10px",fontSize:10.5,fontWeight:700,color:C2.muted,
-                  borderRight:`1px solid ${C2.border}`,whiteSpace:"nowrap",
-                  position:"sticky",left:0,background:"#F7F4ED",zIndex:1}}>
+                <td style={{padding:"8px 10px",fontSize:10.5,fontWeight:700,color:C2.muted,borderRight:`1px solid ${C2.border}`,whiteSpace:"nowrap",position:"sticky",left:0,background:"#F7F4ED",zIndex:1}}>
                   <div style={{color:C2.dark}}>{slot}</div>
                   <div style={{fontSize:8.5,color:"#AAA",fontWeight:400}}>{SLOT_NAMES[si]}</div>
                 </td>
                 {dates.map(d=>{
-                  const bk      = pipeline[d]?.[`s${si}`];
-                  const s       = bk ? SC[bk.streamId] : null;
-                  const isSel   = sel?.date===d && sel?.si===si;
-                  const editable= canEditCell(bk);
-                  const owners  = bk ? getOwnerIds(bk.streamId) : [];
-                  const isMine  = bk ? owners.includes(partnerId)||owners.length===0 : false;
-                  return (
+                  const bk=pipeline[d]?.[`s${si}`];
+                  const s=bk?SC[bk.streamId]:null;
+                  const isSel=sel?.date===d&&sel?.si===si;
+                  const editable=canEditCell(bk);
+                  const owners=bk?getOwnerIds(bk.streamId):[];
+                  const isMine=bk?owners.includes(partnerId)||owners.length===0:false;
+                  return(
                     <td key={d} onClick={()=>selectCell(d,si)}
-                      style={{padding:"3px 2px",textAlign:"center",
-                        cursor:editable?"pointer":"default",
+                      style={{padding:"3px 2px",textAlign:"center",cursor:editable?"pointer":"default",
                         background:isSel?"#FFF9E0":bk?`${s?.color||"#999"}10`:"transparent",
-                        borderLeft:`1px solid ${C2.border}`,
-                        outline:isSel?`2px solid #E0A000`:"none",
-                        minWidth:66,verticalAlign:"middle",
-                        opacity:bk&&!isMine&&!isAdmin?0.5:1}}>
-                      {bk ? (
-                        <div style={{background:s?.color||"#999",color:"#fff",
-                          fontSize:8.5,fontWeight:700,padding:"3px 3px",
-                          borderRadius:3,lineHeight:1.3,margin:"0 2px"}}>
+                        borderLeft:`1px solid ${C2.border}`,outline:isSel?`2px solid #E0A000`:"none",
+                        minWidth:66,verticalAlign:"middle",opacity:bk&&!isMine&&!isAdmin?0.5:1}}>
+                      {bk?(
+                        <div style={{background:s?.color||"#999",color:"#fff",fontSize:8.5,fontWeight:700,padding:"3px 3px",borderRadius:3,lineHeight:1.3,margin:"0 2px"}}>
                           <div>{s?.label||bk.streamId}</div>
                           {bk.headcount&&<div style={{opacity:0.85,fontSize:8}}>{bk.headcount} pax</div>}
-                          {bk.notes&&<div style={{opacity:0.75,fontSize:7.5,
-                            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                            maxWidth:58}}>{bk.notes}</div>}
+                          {bk.notes&&<div style={{opacity:0.75,fontSize:7.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:58}}>{bk.notes}</div>}
                           {bk.confirmed&&<div style={{fontSize:7.5}}>✓</div>}
-                          {!isMine&&!isAdmin&&(
-                            <div style={{fontSize:7,background:"rgba(0,0,0,0.3)",
-                              borderRadius:2,marginTop:1,padding:"0 2px"}}>view only</div>
-                          )}
+                          {!isMine&&!isAdmin&&<div style={{fontSize:7,background:"rgba(0,0,0,0.3)",borderRadius:2,marginTop:1,padding:"0 2px"}}>view only</div>}
                         </div>
-                      ) : (
-                        editable
-                          ? <div style={{color:"#DDD",fontSize:18,lineHeight:"38px"}}>+</div>
-                          : <div style={{color:"#EBEBEB",fontSize:10,lineHeight:"38px"}}>—</div>
-                      )}
+                      ):(editable?<div style={{color:"#DDD",fontSize:18,lineHeight:"38px"}}>+</div>:<div style={{color:"#EBEBEB",fontSize:10,lineHeight:"38px"}}>—</div>)}
                     </td>
                   );
                 })}
@@ -456,19 +339,14 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
         </table>
       </div>
 
-      {/* ── Manual cell editor ── */}
-      {sel && (
-        <div style={{background:"#fff",border:`2px solid #E0A000`,padding:"13px 15px",
-          marginTop:12,borderRadius:8}}>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",
-            letterSpacing:"0.08em",color:C2.dark,marginBottom:10}}>
-            {SLOTS[sel.si]} · {sel.date}
-          </div>
+      {/* Manual cell editor */}
+      {sel&&(
+        <div style={{background:"#fff",border:`2px solid #E0A000`,padding:"13px 15px",marginTop:12,borderRadius:8}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C2.dark,marginBottom:10}}>{SLOTS[sel.si]} · {sel.date}</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
             <div>
               <div style={{fontSize:9.5,color:C2.muted,marginBottom:2}}>Stream</div>
-              <select value={form.streamId}
-                onChange={e=>setForm(p=>({...p,streamId:e.target.value}))}
+              <select value={form.streamId} onChange={e=>setForm(p=>({...p,streamId:e.target.value}))}
                 style={{width:190,fontSize:12,border:`1px solid ${C2.border}`,padding:"5px 8px"}}>
                 <option value="">— Empty slot —</option>
                 {myStreams.map((s:any)=><option key={s.id} value={s.id}>{s.label}</option>)}
@@ -487,26 +365,14 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
                 style={{width:"100%",border:`1px solid ${C2.border}`,padding:"5px 8px",fontSize:13}}/>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <input type="checkbox" checked={form.confirmed}
-                onChange={e=>setForm(p=>({...p,confirmed:e.target.checked}))}/>
+              <input type="checkbox" checked={form.confirmed} onChange={e=>setForm(p=>({...p,confirmed:e.target.checked}))}/>
               <span style={{fontSize:12}}>Confirmed</span>
             </div>
-            <button onClick={save}
-              style={{padding:"6px 14px",background:C2.dark,color:"#fff",border:"none",
-                fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:6}}>
-              Save
-            </button>
-            <button
-              onClick={()=>{set(ref(db,`/pipeline/${sel.date}/s${sel.si}`),null);setSel(null);}}
-              style={{padding:"6px 12px",background:"#fff",color:"#C4322E",
-                border:"1px solid #C4322E",fontSize:12,cursor:"pointer",borderRadius:6}}>
-              Clear
-            </button>
+            <button onClick={save} style={{padding:"6px 14px",background:C2.dark,color:"#fff",border:"none",fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:6}}>Save</button>
+            <button onClick={()=>{set(ref(db,`/pipeline/${sel.date}/s${sel.si}`),null);setSel(null);}}
+              style={{padding:"6px 12px",background:"#fff",color:"#C4322E",border:"1px solid #C4322E",fontSize:12,cursor:"pointer",borderRadius:6}}>Clear</button>
             <button onClick={()=>setSel(null)}
-              style={{padding:"6px 9px",background:"#fff",color:C2.muted,
-                border:`1px solid ${C2.border}`,fontSize:12,cursor:"pointer",borderRadius:6}}>
-              ✕
-            </button>
+              style={{padding:"6px 9px",background:"#fff",color:C2.muted,border:`1px solid ${C2.border}`,fontSize:12,cursor:"pointer",borderRadius:6}}>✕</button>
           </div>
         </div>
       )}
@@ -514,9 +380,6 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LADDER VIEW (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
 function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
   const C2={border:"#DDD9D0",muted:"#7A8690",dark:"#1A2830"};
   const rung=rungs[selRung];
@@ -524,7 +387,7 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
     <div style={{display:"grid",gridTemplateColumns:"220px 1fr",background:"#fff",
       border:`1px solid ${C2.border}`,borderRadius:8,overflow:"hidden",minHeight:500}}>
       <div style={{borderRight:`2px solid ${C2.border}`}}>
-        {rungs.map((r: any,i: number)=>{
+        {rungs.map((r:any,i:number)=>{
           const active=selRung===i;
           const done=Object.values(checklist[`r${r.id}`]||{}).filter(Boolean).length;
           return(
@@ -532,13 +395,10 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
               style={{width:"100%",padding:"12px 14px",textAlign:"left",border:"none",
                 borderBottom:`1px solid ${C2.border}`,
                 borderLeft:active?`5px solid ${r.color}`:"5px solid transparent",
-                background:active?r.color:"transparent",
-                color:active?"#fff":C2.dark,cursor:"pointer"}}>
+                background:active?r.color:"transparent",color:active?"#fff":C2.dark,cursor:"pointer"}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:24,height:24,borderRadius:"50%",
-                  background:active?"rgba(255,255,255,0.25)":r.color,color:"#fff",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:12,fontWeight:700,flexShrink:0}}>{r.id}</div>
+                <div style={{width:24,height:24,borderRadius:"50%",background:active?"rgba(255,255,255,0.25)":r.color,color:"#fff",
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{r.id}</div>
                 <div>
                   <div style={{fontSize:12,fontWeight:700}}>{r.title}</div>
                   <div style={{fontSize:9.5,opacity:0.75}}>{r.week}</div>
@@ -549,8 +409,7 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
                 <span style={{fontWeight:700}}>{inr(r.projRev)}</span>
               </div>
               <div style={{height:3,background:active?"rgba(255,255,255,0.2)":"#EEE",borderRadius:2,marginTop:3}}>
-                <div style={{height:"100%",width:`${Math.min(100,r.projRev/200000*100)}%`,
-                  background:active?"#fff":r.color,borderRadius:2}}/>
+                <div style={{height:"100%",width:`${Math.min(100,r.projRev/200000*100)}%`,background:active?"#fff":r.color,borderRadius:2}}/>
               </div>
               <div style={{fontSize:9,opacity:0.65,marginTop:2}}>{done}/{r.unlock.length} unlocks done</div>
             </button>
@@ -563,38 +422,31 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
           <div style={{fontFamily:"Georgia,serif",fontSize:18,fontWeight:600,marginTop:2}}>{rung.title}</div>
         </div>
         <div style={{display:"flex",gap:5,marginBottom:14}}>
-          {rungs.map((_: any,i: number)=>(
+          {rungs.map((_:any,i:number)=>(
             <div key={i} onClick={()=>setSelRung(i)}
-              style={{flex:1,height:5,borderRadius:3,cursor:"pointer",
-                background:i<=selRung?rung.color:"#DDD"}}/>
+              style={{flex:1,height:5,borderRadius:3,cursor:"pointer",background:i<=selRung?rung.color:"#DDD"}}/>
           ))}
         </div>
-        <div style={{fontWeight:700,fontSize:12,textTransform:"uppercase",
-          letterSpacing:"0.07em",color:C2.muted,marginBottom:10}}>
+        <div style={{fontWeight:700,fontSize:12,textTransform:"uppercase",letterSpacing:"0.07em",color:C2.muted,marginBottom:10}}>
           Streams active at this rung
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:18}}>
-          {rung.streams.map((sk: string)=>(
-            <span key={sk} style={{padding:"4px 10px",
-              background:`${SC[sk]?.color||"#999"}20`,color:SC[sk]?.color||"#999",
+          {rung.streams.map((sk:string)=>(
+            <span key={sk} style={{padding:"4px 10px",background:`${SC[sk]?.color||"#999"}20`,color:SC[sk]?.color||"#999",
               border:`1px solid ${SC[sk]?.color||"#999"}60`,fontSize:12,fontWeight:700,borderRadius:4}}>
               {SC[sk]?.label||sk}
             </span>
           ))}
         </div>
-        <div style={{fontWeight:700,fontSize:12,textTransform:"uppercase",
-          letterSpacing:"0.07em",color:rung.color,marginBottom:10}}>
+        <div style={{fontWeight:700,fontSize:12,textTransform:"uppercase",letterSpacing:"0.07em",color:rung.color,marginBottom:10}}>
           ✓ Unlock checklist {rung.id<5?`→ Rung ${rung.id+1}`:"— Full program"}
         </div>
-        {rung.unlock.map((u: string,i: number)=>{
+        {rung.unlock.map((u:string,i:number)=>{
           const done=checklist[`r${rung.id}`]?.[i]===true;
           return(
             <div key={i} onClick={()=>toggleCheck(rung.id,i)}
-              style={{display:"flex",gap:8,padding:"6px 0",
-                borderBottom:`1px dotted ${C2.border}`,cursor:"pointer",opacity:done?0.55:1}}>
-              <span style={{color:done?rung.color:"#CCC",fontSize:14,flexShrink:0}}>
-                {done?"✓":"○"}
-              </span>
+              style={{display:"flex",gap:8,padding:"6px 0",borderBottom:`1px dotted ${C2.border}`,cursor:"pointer",opacity:done?0.55:1}}>
+              <span style={{color:done?rung.color:"#CCC",fontSize:14,flexShrink:0}}>{done?"✓":"○"}</span>
               <span style={{fontSize:13,textDecoration:done?"line-through":"none"}}>{u}</span>
             </div>
           );
@@ -602,81 +454,61 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
         <div style={{marginTop:12,fontSize:11,color:C2.muted}}>Tap to mark done — syncs to all partners.</div>
         <div style={{display:"flex",justifyContent:"space-between",marginTop:18}}>
           <button onClick={()=>setSelRung(Math.max(0,selRung-1))} disabled={selRung===0}
-            style={{padding:"7px 15px",fontSize:12,border:`1px solid ${C2.border}`,
-              background:selRung===0?"#F7F4ED":"#fff",color:selRung===0?"#CCC":C2.dark,
-              cursor:"pointer",borderRadius:6}}>← Prev</button>
+            style={{padding:"7px 15px",fontSize:12,border:`1px solid ${C2.border}`,background:selRung===0?"#F7F4ED":"#fff",color:selRung===0?"#CCC":C2.dark,cursor:"pointer",borderRadius:6}}>← Prev</button>
           <button onClick={()=>setSelRung(Math.min(rungs.length-1,selRung+1))} disabled={selRung===rungs.length-1}
-            style={{padding:"7px 15px",fontSize:12,border:"none",
-              background:selRung===rungs.length-1?"#F7F4ED":rung.color,
-              color:selRung===rungs.length-1?"#CCC":"#fff",
-              cursor:"pointer",borderRadius:6}}>Next →</button>
+            style={{padding:"7px 15px",fontSize:12,border:"none",background:selRung===rungs.length-1?"#F7F4ED":rung.color,color:selRung===rungs.length-1?"#CCC":"#fff",cursor:"pointer",borderRadius:6}}>Next →</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPARE VIEW (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
 function CompareView({ pipeline, streamData }: any) {
-  const dates = useMemo(()=>get14Days(),[]);
-  const cnt: Record<string,number>={};
-  dates.forEach(d=>{Object.values(pipeline[d]||{}).forEach((bk: any)=>{if(bk?.streamId)cnt[bk.streamId]=(cnt[bk.streamId]||0)+1;});});
-
-  const STREAMS_DEF: any[]=[
-    {id:"kids",    label:"Kids Activity",       defaultCount:15, defaultPrice:2500},
-    {id:"yoga",    label:"Wellness/Yoga",        defaultCount:25, defaultPrice:1500},
-    {id:"senior",  label:"Senior Citizen",       defaultCount:20, defaultPrice:100},
-    {id:"social",  label:"Evening Social",       defaultCount:40, defaultPrice:300},
-    {id:"events_in",label:"Ticketed Events(TLR)",defaultCount:35, defaultPrice:600, defaultEventsPerMonth:2, isEventStream:true},
-    {id:"members", label:"Membership",           defaultCount:10, defaultPrice:2000},
-    {id:"offsite", label:"Corporate Off-sites",  defaultCount:3,  defaultPrice:15000},
-    {id:"workshop",label:"Workshop/Rental",      defaultCount:3,  defaultPrice:6000},
-    {id:"events_out",label:"Events Outside TLR", defaultCount:35, defaultPrice:500, defaultEventsPerMonth:1, isEventStream:true},
+  const dates=useMemo(()=>get14Days(),[]);
+  const cnt:Record<string,number>={};
+  dates.forEach(d=>{Object.values(pipeline[d]||{}).forEach((bk:any)=>{if(bk?.streamId)cnt[bk.streamId]=(cnt[bk.streamId]||0)+1;});});
+  const STREAMS_DEF:any[]=[
+    {id:"kids",    label:"Kids Activity",        defaultCount:15, defaultPrice:2500},
+    {id:"yoga",    label:"Wellness/Yoga",         defaultCount:25, defaultPrice:1500},
+    {id:"senior",  label:"Senior Citizen",        defaultCount:20, defaultPrice:100},
+    {id:"social",  label:"Evening Social",        defaultCount:40, defaultPrice:300},
+    {id:"events_in",label:"Ticketed Events(TLR)", defaultCount:35, defaultPrice:600,  defaultEventsPerMonth:2, isEventStream:true},
+    {id:"members", label:"Membership",            defaultCount:10, defaultPrice:2000},
+    {id:"offsite", label:"Corporate Off-sites",   defaultCount:3,  defaultPrice:15000},
+    {id:"workshop",label:"Workshop/Rental",       defaultCount:3,  defaultPrice:6000},
+    {id:"events_out",label:"Events Outside TLR",  defaultCount:35, defaultPrice:500,  defaultEventsPerMonth:1, isEventStream:true},
   ];
-
-  const getV=(id: string,f: string)=>{
-    const def: any=STREAMS_DEF.find(s=>s.id===id);
+  const getV=(id:string,f:string)=>{
+    const def:any=STREAMS_DEF.find(s=>s.id===id);
     if(f==="count")return streamData[id]?.count??def?.defaultCount??0;
     if(f==="price")return streamData[id]?.price??def?.defaultPrice??0;
     if(f==="epm")  return streamData[id]?.eventsPerMonth??def?.defaultEventsPerMonth??1;
     return 0;
   };
-  const tgt=(s: any)=>{
-    if(s.isEventStream)return getV(s.id,"epm")*getV(s.id,"count")*getV(s.id,"price");
-    return getV(s.id,"count")*getV(s.id,"price");
-  };
-  const est=(s: any)=>{
+  const tgt=(s:any)=>s.isEventStream?getV(s.id,"epm")*getV(s.id,"count")*getV(s.id,"price"):getV(s.id,"count")*getV(s.id,"price");
+  const est=(s:any)=>{
     const sessions=(cnt[s.id]||0)*2;
     if(s.isEventStream||s.id==="offsite"||s.id==="workshop")return sessions*getV(s.id,"price");
     return(cnt[s.id]||0)>0?getV(s.id,"count")*getV(s.id,"price"):0;
   };
-
   const C2={border:"#DDD9D0",muted:"#7A8690",dark:"#1A2830",green:"#1E5C3A",red:"#C4322E"};
-  const inrFmt=(v: number)=>"₹"+Math.round(Math.abs(v)).toLocaleString("en-IN");
-
+  const inrFmt=(v:number)=>"₹"+Math.round(Math.abs(v)).toLocaleString("en-IN");
   return(
     <div>
       <div style={{background:"#fff",border:`1px solid ${C2.border}`,borderRadius:8,overflow:"auto"}}>
-        <div style={{padding:"9px 13px 6px",fontSize:10,textTransform:"uppercase",
-          letterSpacing:"0.09em",color:C2.muted,fontWeight:700,
-          borderBottom:`1px solid ${C2.border}`}}>
+        <div style={{padding:"9px 13px 6px",fontSize:10,textTransform:"uppercase",letterSpacing:"0.09em",color:C2.muted,fontWeight:700,borderBottom:`1px solid ${C2.border}`}}>
           Monthly plan vs 2-week pipeline (extrapolated)
         </div>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
-          <thead>
-            <tr style={{background:"#F7F4ED"}}>
-              {["Stream","Monthly Target","Pipeline Est.","Gap","Action"].map(h=>(
-                <th key={h} style={{padding:"7px 10px",textAlign:"left",fontSize:10,
-                  fontWeight:600,color:C2.muted,borderBottom:`1px solid ${C2.border}`}}>{h}</th>
-              ))}
-            </tr>
-          </thead>
+          <thead><tr style={{background:"#F7F4ED"}}>
+            {["Stream","Monthly Target","Pipeline Est.","Gap","Action"].map(h=>(
+              <th key={h} style={{padding:"7px 10px",textAlign:"left",fontSize:10,fontWeight:600,color:C2.muted,borderBottom:`1px solid ${C2.border}`}}>{h}</th>
+            ))}
+          </tr></thead>
           <tbody>
             {STREAMS_DEF.map(s=>{
               const t=tgt(s),e=est(s),gap=e-t,sess=cnt[s.id]||0;
-              const actions: Record<string,string>={
+              const actions:Record<string,string>={
                 kids:`Enroll ${Math.ceil(Math.abs(gap)/2500)} more kids`,
                 yoga:`Add ${Math.ceil(Math.abs(gap)/1500)} more members`,
                 offsite:`Book ${Math.ceil(Math.abs(gap)/15000)} more corporate day(s)`,
@@ -684,26 +516,15 @@ function CompareView({ pipeline, streamData }: any) {
                 members:`Convert ${Math.ceil(Math.abs(gap)/2000)} more members`,
               };
               return(
-                <tr key={s.id} style={{borderBottom:`1px solid ${C2.border}`,
-                  background:gap<0?"#FEF5F5":"transparent"}}>
+                <tr key={s.id} style={{borderBottom:`1px solid ${C2.border}`,background:gap<0?"#FEF5F5":"transparent"}}>
                   <td style={{padding:"8px 10px",fontWeight:600}}>
-                    <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",
-                      background:SC[s.id]?.color||C2.green,marginRight:6,verticalAlign:"middle"}}/>
+                    <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:SC[s.id]?.color||C2.green,marginRight:6,verticalAlign:"middle"}}/>
                     {s.label}
                   </td>
                   <td style={{padding:"8px 10px",fontWeight:600,fontVariantNumeric:"tabular-nums"}}>{inrFmt(t)}</td>
-                  <td style={{padding:"8px 10px",color:C2.muted,fontVariantNumeric:"tabular-nums"}}>
-                    {inrFmt(e)}
-                    <div style={{fontSize:9.5,color:"#AAA"}}>{sess} sessions</div>
-                  </td>
-                  <td style={{padding:"8px 10px",fontWeight:700,
-                    color:gap>=0?C2.green:C2.red,fontVariantNumeric:"tabular-nums"}}>
-                    {gap>=0?"+":""}{inrFmt(gap)}
-                  </td>
-                  <td style={{padding:"8px 10px",fontSize:11.5,
-                    color:gap>=0?C2.green:C2.red,fontStyle:"italic"}}>
-                    {gap>=0?"On track ✓":(actions[s.id]||`Gap of ${inrFmt(Math.abs(gap))}`)}
-                  </td>
+                  <td style={{padding:"8px 10px",color:C2.muted,fontVariantNumeric:"tabular-nums"}}>{inrFmt(e)}<div style={{fontSize:9.5,color:"#AAA"}}>{sess} sessions</div></td>
+                  <td style={{padding:"8px 10px",fontWeight:700,color:gap>=0?C2.green:C2.red,fontVariantNumeric:"tabular-nums"}}>{gap>=0?"+":""}{inrFmt(gap)}</td>
+                  <td style={{padding:"8px 10px",fontSize:11.5,color:gap>=0?C2.green:C2.red,fontStyle:"italic"}}>{gap>=0?"On track ✓":(actions[s.id]||`Gap of ${inrFmt(Math.abs(gap))}`)}</td>
                 </tr>
               );
             })}
