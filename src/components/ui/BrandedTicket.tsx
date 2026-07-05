@@ -31,7 +31,6 @@ export default function BrandedTicket({
 
   return (
     <div className="w-full max-w-md mx-auto select-none" id="lr-ticket">
-      {/* Top band */}
       <div className="bg-brand-earth rounded-t-2xl px-6 py-5 text-brand-bone">
         <div className="flex items-center gap-2 mb-3">
           <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
@@ -47,7 +46,6 @@ export default function BrandedTicket({
         <h2 className="font-serif text-xl font-bold leading-snug">{eventTitle}</h2>
       </div>
 
-      {/* Body */}
       <div className="bg-white border-x border-brand-border px-6 py-5">
         <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full mb-4 ${statusBadge.bg} ${statusBadge.text}`}>
           {statusBadge.label}
@@ -90,13 +88,29 @@ export default function BrandedTicket({
         </div>
       </div>
 
-      {/* Tear line */}
       <div className="relative bg-white border-x border-brand-border">
         <div className="border-t-2 border-dashed border-brand-border mx-0"/>
         <div className="absolute -left-3 -top-2.5 w-5 h-5 rounded-full bg-brand-bone border border-brand-border"/>
         <div className="absolute -right-3 -top-2.5 w-5 h-5 rounded-full bg-brand-bone border border-brand-border"/>
       </div>
 
-      {/* QR section */}
       <div className="bg-white rounded-b-2xl border-x border-b border-brand-border px-6 py-5 flex flex-col items-center gap-3">
-        <p className="text-
+        <p className="text-[10px] uppercase tracking-[0.2em] text-brand-muted font-bold">
+          Scan to verify entry
+        </p>
+        <div className="p-2 bg-brand-bone rounded-xl border border-brand-border">
+          <img
+            src={qrUrl}
+            alt={`QR code for ticket ${ticketRef}`}
+            width={120}
+            height={120}
+            className="block"
+          />
+        </div>
+        <p className="text-[10px] text-brand-muted text-center">
+          Show this QR at the door · Ref: <span className="font-mono font-bold text-brand-spice">{ticketRef}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
