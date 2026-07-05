@@ -6,7 +6,6 @@ import { useAuth }   from "../../contexts/AuthContext";
 
 const SLOTS      = ["7–9 AM", "10 AM–12 PM", "2–5 PM", "6–10 PM"];
 const SLOT_NAMES = ["Early morning", "Mid-morning", "Afternoon", "Evening"];
-const DAYS       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
 const SC: Record<string,{label:string;color:string}> = {
   kids:      { label:"Kids",         color:"#D4790A" },
@@ -49,17 +48,26 @@ const fmtDate = (ds: string) => {
   return { day:d.toLocaleDateString("en-IN",{weekday:"short"}), num:d.getDate(), isWknd:d.getDay()===0||d.getDay()===6 };
 };
 
-const C = { border:"#DDD9D0", muted:"#7A8690", dark:"#1A2830", bg:"#F7F4ED" };
-const inr = (v: number) => "₹"+(v/100000).toFixed(1)+"L";
+const C  = { border:"#DDD9D0", muted:"#7A8690", dark:"#1A2830", bg:"#F7F4ED" };
+const C2 = { border:"#DDD9D0", muted:"#7A8690", dark:"#1A2830" };
+const inr  = (v: number) => "₹"+(v/100000).toFixed(1)+"L";
+const inrK = (v: number) => v>=100000?"₹"+(v/100000).toFixed(1)+"L":"₹"+Math.round(v).toLocaleString("en-IN");
 
 const SLOT_MAP: Record<string,number> = {
-  "7–9 am":0, "7-9 am":0, "7–9am":0,
-  "10 am–12 pm":1, "10 am-12 pm":1, "10am–12pm":1, "10am-12pm":1,
-  "2–5 pm":2, "2-5 pm":2, "2–5pm":2,
-  "6–10 pm":3, "6-10 pm":3, "6–10pm":3,
+  "7–9 am":0,"7-9 am":0,"7–9am":0,
+  "10 am–12 pm":1,"10 am-12 pm":1,"10am–12pm":1,"10am-12pm":1,
+  "2–5 pm":2,"2-5 pm":2,"2–5pm":2,
+  "6–10 pm":3,"6-10 pm":3,"6–10pm":3,
 };
 const resolveSlot = (s: string): number => SLOT_MAP[s.toLowerCase().trim()] ?? -1;
 
+// Revenue estimate per slot per stream
+const SLOT_REV: Record<string,number> = {
+  yoga:500, social:200, workshop:1500, events_in:2000,
+  events_out:800, members:400, kids:600, senior:100, offsite:5000,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 export default function PartnerCalendar() {
   const { user, isAdmin } = useAuth();
   const [subTab,      setSubTab]   = useState<"ladder"|"pipeline"|"compare">("ladder");
@@ -79,7 +87,7 @@ export default function PartnerCalendar() {
     return ()=>u.forEach(x=>x());
   },[]);
 
-  const getOwnerIds=(sid: string)=>{
+  const getOwnerIds=(sid:string)=>{
     const a=assignments[sid]; if(!a)return [];
     if(typeof a==="string")return [a];
     return Object.keys(a).filter(k=>a[k]===true);
@@ -89,7 +97,7 @@ export default function PartnerCalendar() {
     const owners=getOwnerIds(s.id);
     return owners.length===0||owners.includes(user?.partnerId||"");
   });
-  const toggleCheck=(rungId: number,idx: number)=>{
+  const toggleCheck=(rungId:number,idx:number)=>{
     const cur=checklist[`r${rungId}`]?.[idx];
     set(ref(db,`/checklist/r${rungId}/${idx}`),!cur);
   };
@@ -113,6 +121,240 @@ export default function PartnerCalendar() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PIPELINE ANALYTICS DASHBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+function PipelineDashboard({ pipeline, dates }: { pipeline:any; dates:string[] }) {
+  const TOTAL = dates.length * SLOTS.length; // 56
+
+  // Compute filled slots
+  const filled: {date:string;si:number;streamId:string}[] = [];
+  dates.forEach(d=>{
+    SLOTS.forEach((_,si)=>{
+      const bk=pipeline[d]?.[`s${si}`];
+      if(bk?.streamId) filled.push({date:d,si,streamId:bk.streamId});
+    });
+  });
+
+  const filledCount  = filled.length;
+  const emptyCount   = TOTAL - filledCount;
+  const pct          = Math.round((filledCount/TOTAL)*100);
+  const estRevenue   = filled.reduce((sum,f)=>sum+(SLOT_REV[f.streamId]||0),0);
+
+  // Week split
+  const w1dates = dates.slice(0,7);
+  const w2dates = dates.slice(7);
+  const w1filled = w1dates.reduce((n,d)=>n+SLOTS.filter((_,si)=>pipeline[d]?.[`s${si}`]?.streamId).length,0);
+  const w2filled = w2dates.reduce((n,d)=>n+SLOTS.filter((_,si)=>pipeline[d]?.[`s${si}`]?.streamId).length,0);
+
+  // Stream breakdown
+  const streamCount: Record<string,number> = {};
+  filled.forEach(f=>{ streamCount[f.streamId]=(streamCount[f.streamId]||0)+1; });
+  const streamsSorted = STREAM_LIST
+    .map(s=>({...s,count:streamCount[s.id]||0}))
+    .sort((a,b)=>b.count-a.count);
+  const missingStreams = streamsSorted.filter(s=>s.count===0);
+
+  // Day-by-day
+  const dayStats = dates.map(d=>{
+    const f=SLOTS.filter((_,si)=>pipeline[d]?.[`s${si}`]?.streamId).length;
+    const {day,num,isWknd}=fmtDate(d);
+    return {date:d,day,num,isWknd,filled:f,total:SLOTS.length};
+  });
+
+  // Slot-type breakdown
+  const slotStats = SLOTS.map((slot,si)=>{
+    const f=dates.filter(d=>pipeline[d]?.[`s${si}`]?.streamId).length;
+    return {slot,name:SLOT_NAMES[si],filled:f,total:dates.length};
+  });
+
+  // Nudges
+  const nudges: {icon:string;text:string;color:string}[] = [];
+  if(pct<50) nudges.push({icon:"⚡",text:`Only ${pct}% of slots filled — aim for 60%+ this fortnight`,color:"#C4322E"});
+  if(w1filled<w2filled-2) nudges.push({icon:"📅",text:`Week 1 has ${w1filled} slots vs Week 2's ${w2filled} — balance it out`,color:"#B7770D"});
+  if(missingStreams.some(s=>s.id==="yoga")) nudges.push({icon:"🧘",text:"No Yoga scheduled — add morning sessions Tue–Fri for quick wins",color:"#1E6B40"});
+  if(missingStreams.some(s=>s.id==="kids")) nudges.push({icon:"👦",text:"No Kids activity — needed for Rung 3 unlock",color:"#D4790A"});
+  if(missingStreams.some(s=>s.id==="offsite")) nudges.push({icon:"🏢",text:"No Corporate bookings — reach out to 2+ companies this week",color:"#B7770D"});
+  if(slotStats[0].filled<3) nudges.push({icon:"🌅",text:`Early morning (7–9 AM) mostly empty — ${slotStats[0].filled}/${slotStats[0].total} days filled`,color:"#2471A3"});
+  if(nudges.length===0) nudges.push({icon:"✅",text:"Great job! Pipeline looks healthy. Keep confirming bookings.",color:"#1E6B40"});
+
+  const bdr = `1px solid ${C2.border}`;
+
+  return (
+    <div style={{marginTop:20}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:C2.dark}}>📊 Pipeline Analytics</div>
+          <div style={{fontSize:11,color:C2.muted}}>Based on current 2-week schedule</div>
+        </div>
+        <div style={{fontSize:11,color:C2.muted,background:"#fff",border:bdr,padding:"4px 10px",borderRadius:20}}>
+          {dates[0]} → {dates[dates.length-1]}
+        </div>
+      </div>
+
+      {/* ── Row 1: Summary cards ── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+        {/* Utilisation */}
+        <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"12px 14px"}}>
+          <div style={{fontSize:9.5,color:C2.muted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>Slots filled</div>
+          <div style={{fontSize:26,fontWeight:800,color:pct>=60?"#1E6B40":pct>=40?"#B7770D":"#C4322E",lineHeight:1}}>{filledCount}<span style={{fontSize:13,fontWeight:400,color:C2.muted}}>/{TOTAL}</span></div>
+          <div style={{height:5,background:"#EEE",borderRadius:3,marginTop:8}}>
+            <div style={{height:"100%",width:`${pct}%`,background:pct>=60?"#1E6B40":pct>=40?"#B7770D":"#C4322E",borderRadius:3,transition:"width 0.4s"}}/>
+          </div>
+          <div style={{fontSize:10,color:C2.muted,marginTop:4}}>{pct}% utilisation</div>
+        </div>
+
+        {/* Empty slots */}
+        <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"12px 14px"}}>
+          <div style={{fontSize:9.5,color:C2.muted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>Empty slots</div>
+          <div style={{fontSize:26,fontWeight:800,color:emptyCount>20?"#C4322E":emptyCount>10?"#B7770D":"#1E6B40",lineHeight:1}}>{emptyCount}</div>
+          <div style={{fontSize:10,color:C2.muted,marginTop:10}}>out of {TOTAL} total slots</div>
+          <div style={{fontSize:10,color:"#C4322E",marginTop:2,fontWeight:600}}>{emptyCount>0?`${emptyCount} slots still open`:""}</div>
+        </div>
+
+        {/* Week split */}
+        <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"12px 14px"}}>
+          <div style={{fontSize:9.5,color:C2.muted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>Week split</div>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:"#2471A3",fontWeight:700,marginBottom:3}}>WK 1</div>
+              <div style={{fontSize:20,fontWeight:800,color:"#2471A3"}}>{w1filled}<span style={{fontSize:10,fontWeight:400,color:C2.muted}}>/{w1dates.length*4}</span></div>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:"#1E6B40",fontWeight:700,marginBottom:3}}>WK 2</div>
+              <div style={{fontSize:20,fontWeight:800,color:"#1E6B40"}}>{w2filled}<span style={{fontSize:10,fontWeight:400,color:C2.muted}}>/{w2dates.length*4}</span></div>
+            </div>
+          </div>
+          <div style={{fontSize:10,color:C2.muted,marginTop:6}}>
+            {w1filled===w2filled?"Both weeks equal":w1filled>w2filled?`Wk 1 heavier by ${w1filled-w2filled}`:`Wk 2 heavier by ${w2filled-w1filled}`}
+          </div>
+        </div>
+
+        {/* Est. Revenue */}
+        <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"12px 14px"}}>
+          <div style={{fontSize:9.5,color:C2.muted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>Est. 2-wk revenue</div>
+          <div style={{fontSize:22,fontWeight:800,color:C2.dark,lineHeight:1}}>{inrK(estRevenue)}</div>
+          <div style={{fontSize:10,color:C2.muted,marginTop:10}}>based on avg per slot</div>
+          <div style={{fontSize:10,color:"#1E6B40",marginTop:2,fontWeight:600}}>
+            {emptyCount>0?`+${inrK(emptyCount*500)} if all filled`:"+₹0 — fully booked!"}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 2: Stream breakdown + Day heatmap ── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+
+        {/* Stream breakdown */}
+        <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:C2.dark,marginBottom:10}}>Stream breakdown</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {streamsSorted.map(s=>(
+              <div key={s.id} style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                <div style={{fontSize:11,color:C2.dark,width:90,flexShrink:0}}>{s.label}</div>
+                <div style={{flex:1,height:6,background:"#F0F0F0",borderRadius:3}}>
+                  <div style={{height:"100%",width:s.count===0?"0%":`${Math.round((s.count/Math.max(filledCount,1))*100)}%`,
+                    background:s.count===0?"#EEE":s.color,borderRadius:3,transition:"width 0.3s"}}/>
+                </div>
+                <div style={{fontSize:11,fontWeight:700,color:s.count===0?C2.muted:C2.dark,width:28,textAlign:"right"}}>
+                  {s.count===0?"—":s.count}
+                </div>
+                {s.count===0&&(
+                  <span style={{fontSize:9,background:"#FEF2F2",color:"#C4322E",padding:"1px 5px",borderRadius:3,fontWeight:700}}>EMPTY</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Day × Slot heatmap */}
+        <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:C2.dark,marginBottom:10}}>Day fill rate</div>
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+            {dayStats.map(d=>{
+              const pctDay=Math.round((d.filled/d.total)*100);
+              const bg=pctDay===100?"#1E6B40":pctDay>=75?"#27AE60":pctDay>=50?"#B7770D":pctDay>0?"#E67E22":"#EEE";
+              return(
+                <div key={d.date} style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{fontSize:10,width:28,color:d.isWknd?"#B7770D":C2.dark,fontWeight:d.isWknd?700:400,flexShrink:0}}>{d.day} {d.num}</div>
+                  <div style={{flex:1,height:16,background:"#F0F0F0",borderRadius:3,position:"relative",overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pctDay}%`,background:bg,borderRadius:3,transition:"width 0.3s"}}/>
+                    {SLOTS.map((_,si)=>{
+                      const bk=pipeline[d.date]?.[`s${si}`];
+                      return bk?.streamId?(
+                        <div key={si} title={SC[bk.streamId]?.label}
+                          style={{position:"absolute",top:1,left:`${si*25}%`,width:"23%",height:14,
+                            background:SC[bk.streamId]?.color||"#999",borderRadius:2,opacity:0.9}}/>
+                      ):null;
+                    })}
+                  </div>
+                  <div style={{fontSize:10,color:pctDay===0?C2.muted:C2.dark,fontWeight:pctDay===100?700:400,width:30,textAlign:"right"}}>
+                    {d.filled}/{d.total}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+            {[["Full","#1E6B40"],["75%+","#27AE60"],["50%+","#B7770D"],["1+ slot","#E67E22"],["Empty","#EEE"]].map(([l,c])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:3}}>
+                <div style={{width:8,height:8,borderRadius:2,background:c,border:"1px solid #DDD"}}/>
+                <span style={{fontSize:9,color:C2.muted}}>{l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 3: Slot-time breakdown ── */}
+      <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"14px 16px",marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:C2.dark,marginBottom:10}}>Slot fill by time of day</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {slotStats.map((s,i)=>{
+            const pctSlot=Math.round((s.filled/s.total)*100);
+            const col=pctSlot>=75?"#1E6B40":pctSlot>=50?"#B7770D":"#C4322E";
+            return(
+              <div key={i} style={{textAlign:"center"}}>
+                <div style={{fontSize:10,fontWeight:700,color:C2.dark,marginBottom:4}}>{s.slot}</div>
+                <div style={{fontSize:9,color:C2.muted,marginBottom:8}}>{s.name}</div>
+                <div style={{position:"relative",width:52,height:52,margin:"0 auto"}}>
+                  <svg viewBox="0 0 36 36" style={{transform:"rotate(-90deg)"}}>
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#EEE" strokeWidth="3.8"/>
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke={col} strokeWidth="3.8"
+                      strokeDasharray={`${pctSlot} ${100-pctSlot}`} strokeLinecap="round"/>
+                  </svg>
+                  <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:12,fontWeight:800,color:col}}>{pctSlot}%</div>
+                </div>
+                <div style={{fontSize:10,color:C2.muted,marginTop:6}}>{s.filled}/{s.total} days</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Row 4: Smart nudges ── */}
+      <div style={{background:"#fff",border:bdr,borderRadius:8,padding:"14px 16px"}}>
+        <div style={{fontSize:11,fontWeight:700,color:C2.dark,marginBottom:10}}>💡 Action items</div>
+        <div style={{display:"flex",flexDirection:"column",gap:7}}>
+          {nudges.map((n,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"8px 10px",
+              background:`${n.color}08`,border:`1px solid ${n.color}25`,borderLeft:`3px solid ${n.color}`,
+              borderRadius:6}}>
+              <span style={{fontSize:15,flexShrink:0}}>{n.icon}</span>
+              <span style={{fontSize:12,color:C2.dark,lineHeight:1.4}}>{n.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PIPELINE VIEW
+// ─────────────────────────────────────────────────────────────────────────────
 interface ParsedSlot {
   date:string; si:number; slot:string; streamId:string;
   headcount:string; notes:string; confirmed:boolean;
@@ -127,7 +369,6 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
   const [uploadDone,setUploadDone]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dates   = useMemo(()=>get14Days(),[]);
-  const C2      = { border:"#DDD9D0", muted:"#7A8690", dark:"#1A2830" };
 
   const canEditCell=(bk:any)=>{
     if(isAdmin)return true;
@@ -158,26 +399,20 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
       const sheetName=wb.SheetNames.includes("2-Week Pipeline")?"2-Week Pipeline":wb.SheetNames[0];
       const ws=wb.Sheets[sheetName];
       const rows:any[][]=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
-      if(rows.length<3){
-        setUploadError("Sheet appears empty. Make sure you are uploading the correct file.");
-        return;
-      }
-      // Find header row dynamically — look for "Date" in column A
+      if(rows.length<3){setUploadError("Sheet appears empty.");return;}
       let dataStartRow=0;
       for(let i=0;i<Math.min(rows.length,5);i++){
-        const val=String(rows[i][0]||"").trim().toLowerCase();
-        if(val==="date"){dataStartRow=i+1;break;}
+        if(String(rows[i][0]||"").trim().toLowerCase()==="date"){dataStartRow=i+1;break;}
       }
       const parsed:ParsedSlot[]=[];
       for(let ri=dataStartRow;ri<rows.length;ri++){
-        const row=rows[ri];
-        if(!row||row.length<4)continue;
-        const rawDate =String(row[0]||"").trim();
-        const rawSlot =String(row[2]||"").trim();
+        const row=rows[ri]; if(!row||row.length<4)continue;
+        const rawDate=String(row[0]||"").trim();
+        const rawSlot=String(row[2]||"").trim();
         const streamId=String(row[3]||"").trim();
         if(!rawDate||!streamId)continue;
         if(!STREAM_LIST.find(s=>s.id===streamId)){
-          setUploadError(`Unknown stream "${streamId}" in row ${ri+1} — valid values: yoga, workshop, social, events_in, events_out, members, kids, senior, offsite`);
+          setUploadError(`Unknown stream "${streamId}" in row ${ri+1} — valid: yoga, workshop, social, events_in, events_out, members, kids, senior, offsite`);
           return;
         }
         let isoDate="";
@@ -186,18 +421,15 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
         if(!isoDate)continue;
         const si=resolveSlot(rawSlot); if(si===-1)continue;
         parsed.push({date:isoDate,si,slot:SLOTS[si],streamId,
-          headcount:String(row[4]||"").trim(),
-          notes:String(row[5]||"").trim(),
+          headcount:String(row[4]||"").trim(),notes:String(row[5]||"").trim(),
           confirmed:String(row[6]||"").toLowerCase()==="yes"});
       }
       if(parsed.length===0){
-        setUploadError(`No valid rows found. Found ${rows.length} total rows, data starts at row ${dataStartRow+1}. Check Stream column has values like yoga, social, workshop.`);
+        setUploadError(`No valid rows found. ${rows.length} rows read, data from row ${dataStartRow+1}. Check Stream column.`);
         return;
       }
       setPreview(parsed);
-    } catch(err:any){
-      setUploadError(`File read error: ${err?.message||"Unknown error"}`);
-    }
+    } catch(err:any){setUploadError(`File read error: ${err?.message||"Unknown error"}`);}
     if(fileRef.current)fileRef.current.value="";
   };
 
@@ -376,12 +608,17 @@ function PipelineView({ pipeline, myStreams, partnerId, isAdmin, getOwnerIds }: 
           </div>
         </div>
       )}
+
+      {/* ── Analytics Dashboard ── */}
+      <PipelineDashboard pipeline={pipeline} dates={dates}/>
     </div>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LADDER VIEW
+// ─────────────────────────────────────────────────────────────────────────────
 function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
-  const C2={border:"#DDD9D0",muted:"#7A8690",dark:"#1A2830"};
   const rung=rungs[selRung];
   return (
     <div style={{display:"grid",gridTemplateColumns:"220px 1fr",background:"#fff",
@@ -393,12 +630,11 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
           return(
             <button key={r.id} onClick={()=>setSelRung(i)}
               style={{width:"100%",padding:"12px 14px",textAlign:"left",border:"none",
-                borderBottom:`1px solid ${C2.border}`,
-                borderLeft:active?`5px solid ${r.color}`:"5px solid transparent",
+                borderBottom:`1px solid ${C2.border}`,borderLeft:active?`5px solid ${r.color}`:"5px solid transparent",
                 background:active?r.color:"transparent",color:active?"#fff":C2.dark,cursor:"pointer"}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:24,height:24,borderRadius:"50%",background:active?"rgba(255,255,255,0.25)":r.color,color:"#fff",
-                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{r.id}</div>
+                <div style={{width:24,height:24,borderRadius:"50%",background:active?"rgba(255,255,255,0.25)":r.color,
+                  color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{r.id}</div>
                 <div>
                   <div style={{fontSize:12,fontWeight:700}}>{r.title}</div>
                   <div style={{fontSize:9.5,opacity:0.75}}>{r.week}</div>
@@ -423,13 +659,10 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
         </div>
         <div style={{display:"flex",gap:5,marginBottom:14}}>
           {rungs.map((_:any,i:number)=>(
-            <div key={i} onClick={()=>setSelRung(i)}
-              style={{flex:1,height:5,borderRadius:3,cursor:"pointer",background:i<=selRung?rung.color:"#DDD"}}/>
+            <div key={i} onClick={()=>setSelRung(i)} style={{flex:1,height:5,borderRadius:3,cursor:"pointer",background:i<=selRung?rung.color:"#DDD"}}/>
           ))}
         </div>
-        <div style={{fontWeight:700,fontSize:12,textTransform:"uppercase",letterSpacing:"0.07em",color:C2.muted,marginBottom:10}}>
-          Streams active at this rung
-        </div>
+        <div style={{fontWeight:700,fontSize:12,textTransform:"uppercase",letterSpacing:"0.07em",color:C2.muted,marginBottom:10}}>Streams active at this rung</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:18}}>
           {rung.streams.map((sk:string)=>(
             <span key={sk} style={{padding:"4px 10px",background:`${SC[sk]?.color||"#999"}20`,color:SC[sk]?.color||"#999",
@@ -463,6 +696,9 @@ function LadderView({ rungs,selRung,setSelRung,checklist,toggleCheck }: any) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPARE VIEW
+// ─────────────────────────────────────────────────────────────────────────────
 function CompareView({ pipeline, streamData }: any) {
   const dates=useMemo(()=>get14Days(),[]);
   const cnt:Record<string,number>={};
@@ -491,7 +727,6 @@ function CompareView({ pipeline, streamData }: any) {
     if(s.isEventStream||s.id==="offsite"||s.id==="workshop")return sessions*getV(s.id,"price");
     return(cnt[s.id]||0)>0?getV(s.id,"count")*getV(s.id,"price"):0;
   };
-  const C2={border:"#DDD9D0",muted:"#7A8690",dark:"#1A2830",green:"#1E5C3A",red:"#C4322E"};
   const inrFmt=(v:number)=>"₹"+Math.round(Math.abs(v)).toLocaleString("en-IN");
   return(
     <div>
@@ -518,13 +753,13 @@ function CompareView({ pipeline, streamData }: any) {
               return(
                 <tr key={s.id} style={{borderBottom:`1px solid ${C2.border}`,background:gap<0?"#FEF5F5":"transparent"}}>
                   <td style={{padding:"8px 10px",fontWeight:600}}>
-                    <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:SC[s.id]?.color||C2.green,marginRight:6,verticalAlign:"middle"}}/>
+                    <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:SC[s.id]?.color||"#1E5C3A",marginRight:6,verticalAlign:"middle"}}/>
                     {s.label}
                   </td>
                   <td style={{padding:"8px 10px",fontWeight:600,fontVariantNumeric:"tabular-nums"}}>{inrFmt(t)}</td>
                   <td style={{padding:"8px 10px",color:C2.muted,fontVariantNumeric:"tabular-nums"}}>{inrFmt(e)}<div style={{fontSize:9.5,color:"#AAA"}}>{sess} sessions</div></td>
-                  <td style={{padding:"8px 10px",fontWeight:700,color:gap>=0?C2.green:C2.red,fontVariantNumeric:"tabular-nums"}}>{gap>=0?"+":""}{inrFmt(gap)}</td>
-                  <td style={{padding:"8px 10px",fontSize:11.5,color:gap>=0?C2.green:C2.red,fontStyle:"italic"}}>{gap>=0?"On track ✓":(actions[s.id]||`Gap of ${inrFmt(Math.abs(gap))}`)}</td>
+                  <td style={{padding:"8px 10px",fontWeight:700,color:gap>=0?"#1E5C3A":"#C4322E",fontVariantNumeric:"tabular-nums"}}>{gap>=0?"+":""}{inrFmt(gap)}</td>
+                  <td style={{padding:"8px 10px",fontSize:11.5,color:gap>=0?"#1E5C3A":"#C4322E",fontStyle:"italic"}}>{gap>=0?"On track ✓":(actions[s.id]||`Gap of ${inrFmt(Math.abs(gap))}`)}</td>
                 </tr>
               );
             })}
