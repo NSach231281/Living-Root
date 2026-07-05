@@ -10,6 +10,8 @@ import EventDetail  from "./pages/public/EventDetail";
 import Register     from "./pages/public/Register";
 import TicketView   from "./pages/public/TicketView";
 import Login        from "./pages/Login";
+import Privacy      from "./pages/public/Privacy";
+import Terms        from "./pages/public/Terms";
 
 import CustomerDashboard from "./pages/customer/Dashboard";
 
@@ -85,6 +87,8 @@ export default function App() {
           <Route path="/ticket/:ref"  element={<TicketView/>}/>
           <Route path="/login"        element={<Login/>}/>
           <Route path="/me"           element={<PostLoginRedirect/>}/>
+          <Route path="/privacy" element={<Privacy/>}/>
+          <Route path="/terms"   element={<Terms/>}/>
 
           {/* Customer */}
           <Route path="/my" element={<RequireAuth><CustomerDashboard/></RequireAuth>}/>
