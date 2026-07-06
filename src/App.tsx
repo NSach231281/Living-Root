@@ -43,7 +43,7 @@ function RequirePartner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen/>;
   if (!user)   return <Navigate to="/login" replace/>;
-  if (user.role !== "partner" && user.role !== "admin") return <Navigate to="/" replace/>;
+  if (user.role !== "partner" && user.role !== "admin" && user.role !== "marketing") return <Navigate to="/" replace/>;
   return <>{children}</>;
 }
 
@@ -87,8 +87,8 @@ export default function App() {
           <Route path="/ticket/:ref"  element={<TicketView/>}/>
           <Route path="/login"        element={<Login/>}/>
           <Route path="/me"           element={<PostLoginRedirect/>}/>
-          <Route path="/privacy" element={<Privacy/>}/>
-          <Route path="/terms"   element={<Terms/>}/>
+          <Route path="/privacy"      element={<Privacy/>}/>
+          <Route path="/terms"        element={<Terms/>}/>
 
           {/* Customer */}
           <Route path="/my" element={<RequireAuth><CustomerDashboard/></RequireAuth>}/>
