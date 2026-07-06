@@ -68,7 +68,7 @@ function PostLoginRedirect() {
   if (loading) return <LoadingScreen/>;
   if (!user)   return <Navigate to="/login" replace/>;
   if (user.role === "admin")     return <Navigate to="/admin"   replace/>;
-  if (user.role === "marketing") return <Navigate to="/admin"   replace/>;
+  if (user.role === "marketing") return <Navigate to="/marketing" replace/>;
   if (user.role === "partner")   return <Navigate to="/partner" replace/>;
   return <Navigate to="/my" replace/>;
 }
