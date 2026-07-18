@@ -14,10 +14,10 @@ import { LRUser } from "../types";
 // All partner Gmail addresses — role assigned automatically on sign-in
 const PARTNER_GMAIL_MAP: Record<string, { role: LRUser["role"]; partnerId: string }> = {
   "nsachdeva23121981@gmail.com": { role: "admin",   partnerId: "nitin"   },
-  "kapoorshruthi07@gmail.com":   { role: "partner", partnerId: "shruthi" },
+  "mthejashree89@gmail.com":   { role: "partner", partnerId: "Teju" },
   "domesticconnexions@gmail.com":{ role: "partner", partnerId: "siva"    },
-  "anushasreekar.o@gmail.com":   { role: "partner", partnerId: "anusha"  },
-  "aditi.harithasa@gmail.com":    { role: "marketing", partnerId: "aditi"   },
+  "seethalakshmitd@gmail.com":   { role: "partner", partnerId: "Lakshmi"  },
+  "shrushti.placeholder@gmail.com":    { role: "marketing", partnerId: "Shrushti"   },
 };
 
 interface AuthContextType {
