@@ -17,7 +17,7 @@ const PARTNER_GMAIL_MAP: Record<string, { role: LRUser["role"]; partnerId: strin
   "mthejashree89@gmail.com":   { role: "partner", partnerId: "Teju" },
   "domesticconnexions@gmail.com":{ role: "partner", partnerId: "siva"    },
   "seethalakshmitd@gmail.com":   { role: "partner", partnerId: "Lakshmi"  },
-  "shrushti.placeholder@gmail.com":    { role: "marketing", partnerId: "Shrushti"   },
+  "srushtisnimbalkar@gmail.com":    { role: "marketing", partnerId: "Shrushti"   },
 };
 
 interface AuthContextType {
