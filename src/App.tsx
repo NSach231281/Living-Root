@@ -10,8 +10,8 @@ import EventDetail  from "./pages/public/EventDetail";
 import Register     from "./pages/public/Register";
 import TicketView   from "./pages/public/TicketView";
 import Login        from "./pages/Login";
-import Privacy      from "./pages/public/Privacy";
-import Terms        from "./pages/public/Terms";
+import Privacy      from "./pages/Privacy";
+import Terms        from "./pages/Terms";
 
 import CustomerDashboard from "./pages/customer/Dashboard";
 
@@ -20,6 +20,9 @@ import PartnerRevenue  from "./pages/partner/Revenue";
 import PartnerCalendar from "./pages/partner/Calendar";
 import PartnerDaily    from "./pages/partner/Daily";
 import PartnerCollabs  from "./pages/partner/Collabs";
+
+import PipelineManagerLayout from "./pages/pipeline/Layout";
+import AnnualPipeline        from "./pages/pipeline/AnnualPipeline";
 
 import AdminLayout     from "./pages/admin/Layout";
 import AdminOverview   from "./pages/admin/Overview";
@@ -63,12 +66,21 @@ function RequireMarketing({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RequirePipelineManager({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen/>;
+  if (!user)   return <Navigate to="/login" replace/>;
+  if (user.role !== "pipeline_manager" && user.role !== "admin") return <Navigate to="/" replace/>;
+  return <>{children}</>;
+}
+
 function PostLoginRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen/>;
   if (!user)   return <Navigate to="/login" replace/>;
   if (user.role === "admin")     return <Navigate to="/admin"   replace/>;
   if (user.role === "marketing") return <Navigate to="/marketing" replace/>;
+  if (user.role === "pipeline_manager") return <Navigate to="/pipeline-manager" replace/>;
   if (user.role === "partner")   return <Navigate to="/partner" replace/>;
   return <Navigate to="/my" replace/>;
 }
@@ -112,6 +124,11 @@ export default function App() {
             <Route path="feedback"   element={<AdminFeedback/>}/>
             <Route path="users"      element={<AdminUsers/>}/>
             <Route path="assign"     element={<AdminAssign/>}/>
+          </Route>
+
+          {/* Pipeline Manager — annual pipeline only */}
+          <Route path="/pipeline-manager" element={<RequirePipelineManager><PipelineManagerLayout/></RequirePipelineManager>}>
+            <Route index element={<AnnualPipeline/>}/>
           </Route>
 
           {/* Marketing — events + feedback only */}
