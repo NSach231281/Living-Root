@@ -1,4 +1,6 @@
-export type UserRole = "admin" | "partner" | "customer" | "vendor" | "marketing";
+export type UserRole = "admin" | "partner" | "customer" | "vendor" | "marketing" | "pipeline_manager";
+
+export type PipelineSlotStatus = "assigned" | "in_progress" | "confirmed" | "cancelled";
 
 export type SocialType = "Solo" | "Couple" | "Family" | "Student" | "Professional" | "Senior";
 
