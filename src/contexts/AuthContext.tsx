@@ -18,6 +18,7 @@ const PARTNER_GMAIL_MAP: Record<string, { role: LRUser["role"]; partnerId: strin
   "domesticconnexions@gmail.com":{ role: "partner", partnerId: "siva"    },
   "seethalakshmitd@gmail.com":   { role: "partner", partnerId: "Lakshmi"  },
   "srushtisnimbalkar@gmail.com":    { role: "marketing", partnerId: "Shrushti"   },
+  "livingrootspace@gmail.com":      { role: "pipeline_manager", partnerId: "pipeline" },
 };
 
 interface AuthContextType {
@@ -30,6 +31,7 @@ interface AuthContextType {
   isPartner:        boolean;
   isCustomer:       boolean;
   isMarketing:      boolean;
+  isPipelineManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -136,9 +138,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isPartner  = user?.role === "partner" || user?.role === "admin";
   const isCustomer = user?.role === "customer";
   const isMarketing = user?.role === "marketing";
+  const isPipelineManager = user?.role === "pipeline_manager";
 
   return (
-    <AuthContext.Provider value={{ user, fbUser, loading, signInWithGoogle, signOut, isAdmin, isPartner, isCustomer, isMarketing }}>
+    <AuthContext.Provider value={{ user, fbUser, loading, signInWithGoogle, signOut, isAdmin, isPartner, isCustomer, isMarketing, isPipelineManager }}>
       {children}
     </AuthContext.Provider>
   );
