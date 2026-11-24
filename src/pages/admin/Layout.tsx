@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   LayoutDashboard, Ticket, TrendingUp, BarChart2,
-  MessageSquare, Users, LogOut, Globe, Settings
+  MessageSquare, Users, LogOut, Globe, Settings, CalendarCheck
 } from "lucide-react";
 
 // Full admin nav
@@ -41,7 +41,7 @@ export default function AdminLayout() {
               <span className="font-serif text-brand-gold text-lg font-bold italic">LR</span>
             </div>
             <div>
-              <p className="font-bold text-white text-sm">Living Root</p>
+              <p className="font-bold text-white text-sm">Living Roots</p>
               <p className="text-[10px] text-white/40 uppercase tracking-widest">{roleLabel}</p>
             </div>
           </div>
@@ -73,6 +73,12 @@ export default function AdminLayout() {
           ))}
 
           <p className="text-[10px] text-white/30 uppercase tracking-widest px-3 mb-3 mt-6">Quick links</p>
+
+          <button onClick={() => navigate("/crm")}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-sm text-brand-gold hover:bg-white/6 transition-all mb-1 font-semibold">
+            <CalendarCheck size={16}/>
+            Bookings &amp; CRM
+          </button>
 
           {/* Marketing sees partner calendar */}
           {isMarketing && (

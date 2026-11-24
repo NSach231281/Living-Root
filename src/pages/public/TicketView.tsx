@@ -44,7 +44,7 @@ export default function TicketView() {
             <h2 className="font-serif text-xl font-bold text-brand-earth mb-2">Ticket not found</h2>
             <p className="text-brand-clay text-sm mb-6">
               No ticket found for ref <span className="font-mono font-bold text-brand-spice">{ticketRef}</span>.
-              Please check the QR code or contact Living Root.
+              Please check the QR code or contact Living Roots.
             </p>
             <Link to="/events" className="btn-primary text-sm">Browse events</Link>
           </div>
@@ -89,7 +89,7 @@ export default function TicketView() {
 
             <div className="mt-6 text-center">
               <Link to="/events" className="text-sm text-brand-muted hover:text-brand-spice transition-colors">
-                Browse more events at Living Root →
+                Browse more events at Living Roots →
               </Link>
             </div>
           </>

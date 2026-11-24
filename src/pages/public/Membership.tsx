@@ -261,7 +261,7 @@ export default function Membership() {
         <div className="max-w-5xl mx-auto">
           <SectionHeader
             eyebrow="Join the Circle"
-            title="Bring Your Craft To Living Root"
+            title="Bring Your Craft To Living Roots"
             subtitle="We're always looking for the people who make Health, Wealth & Happiness come alive."
           />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">

@@ -104,7 +104,7 @@ export default function AdminOverview() {
         ].map(card => (
           <div key={card.label} className={`bg-white rounded-2xl p-5 border border-brand-border border-t-4 ${card.accent} shadow-card`}>
             <div className="flex items-center gap-2 mb-2 text-brand-muted">{card.icon}<p className="text-xs font-bold uppercase tracking-widest">{card.label}</p></div>
-            <p className="font-serif text-2xl font-bold text-brand-earth">{card.value}</p>
+            <p className="font-serif text-2xl font-bold text-brand-earth">{card.value as any}</p>
             <p className="text-xs text-brand-muted mt-1">{card.sub}</p>
           </div>
         ))}

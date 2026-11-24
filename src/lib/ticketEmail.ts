@@ -14,8 +14,8 @@ export interface TicketEmailData {
 
 export function buildTicketEmail(d: TicketEmailData): { subject: string; html: string } {
   const subject = d.isPaid
-    ? `🎟️ Booking received — ${d.eventTitle} | Living Root`
-    : `✅ You're registered! ${d.eventTitle} | Living Root`;
+    ? `🎟️ Booking received — ${d.eventTitle} | Living Roots`
+    : `✅ You're registered! ${d.eventTitle} | Living Roots`;
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
     `${d.appUrl}/ticket/${d.ticketRef}`
@@ -51,7 +51,7 @@ export function buildTicketEmail(d: TicketEmailData): { subject: string; html: s
               <path d="M18 8 C18 8 10 14 10 20 C10 25 13.5 28 18 28 C22.5 28 26 25 26 20 C26 14 18 8 18 8Z" fill="#C4622D"/>
               <path d="M18 15 L18 28 M14 19 C14 19 16 21 18 20 M22 19 C22 19 20 21 18 20" stroke="#F5F0E8" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
-            <span style="font-family:Georgia,serif;font-size:22px;font-weight:bold;color:#2C1810;letter-spacing:-0.5px;">Living Root</span>
+            <span style="font-family:Georgia,serif;font-size:22px;font-weight:bold;color:#2C1810;letter-spacing:-0.5px;">Living Roots</span>
           </div>
           <p style="margin:4px 0 0;font-family:sans-serif;font-size:12px;color:#9C8672;letter-spacing:2px;text-transform:uppercase;">Community · Connect · Grow</p>
         </td>
@@ -134,7 +134,7 @@ export function buildTicketEmail(d: TicketEmailData): { subject: string; html: s
             <tr>
               <td style="background:#2C1810;padding:16px 32px;text-align:center;">
                 <p style="margin:0;font-family:sans-serif;font-size:11px;color:#9C8672;">
-                  📍 Living Root, JP Nagar 5th Phase, Bengaluru · 
+                  📍 Living Roots, JP Nagar 5th Phase, Bengaluru · 
                   <a href="https://wa.me/919845054981" style="color:#D4A843;text-decoration:none;">WhatsApp us</a> for queries
                 </p>
               </td>
@@ -151,7 +151,7 @@ export function buildTicketEmail(d: TicketEmailData): { subject: string; html: s
             <a href="mailto:hello@livingrootspace.com" style="color:#C4622D;text-decoration:none;">email us</a>
           </p>
           <p style="margin:6px 0 0;font-family:sans-serif;font-size:11px;color:#D4C4A8;">
-            © Living Root Space, JP Nagar, Bengaluru
+            © Living Roots Space, JP Nagar, Bengaluru
           </p>
         </td>
       </tr>

@@ -35,6 +35,9 @@ import AdminAssign     from "./pages/admin/Assign";
 
 import LoadingScreen from "./components/ui/LoadingScreen";
 
+// Bookings module (quotes, UPI payments, CRM, reminders) — all code in src/bookings/
+import { bookingRoutes } from "./bookings/routes";
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen/>;
@@ -101,6 +104,9 @@ export default function App() {
           <Route path="/me"           element={<PostLoginRedirect/>}/>
           <Route path="/privacy"      element={<Privacy/>}/>
           <Route path="/terms"        element={<Terms/>}/>
+
+          {/* Bookings: /book, /b/:id, /crm/* */}
+          {bookingRoutes()}
 
           {/* Customer */}
           <Route path="/my" element={<RequireAuth><CustomerDashboard/></RequireAuth>}/>

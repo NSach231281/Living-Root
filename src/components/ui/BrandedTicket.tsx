@@ -38,7 +38,7 @@ export default function BrandedTicket({
             <path d="M18 8C18 8 10 14 10 20C10 25 13.5 28 18 28C22.5 28 26 25 26 20C26 14 18 8 18Z" fill="#F5F0E8"/>
             <path d="M18 15L18 28M14 19C14 19 16 21 18 20M22 19C22 19 20 21 18 20" stroke="#2C1810" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
-          <span className="font-serif text-lg font-bold tracking-tight">Living Root</span>
+          <span className="font-serif text-lg font-bold tracking-tight">Living Roots</span>
         </div>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-gold mb-1">
           Event Ticket

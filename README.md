@@ -1,5 +1,7 @@
 # 🌿 Living Root — Unified App
 
+> **New: Bookings module** — quotes, UPI QR payments, CRM, reminders, reconciliation. Code in `src/bookings/`, setup in **[BOOKINGS_SETUP.md](BOOKINGS_SETUP.md)**.
+
 Customer booking + partner ops + admin ERP for livingrootspace.com
 
 ---

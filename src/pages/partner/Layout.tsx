@@ -1,7 +1,7 @@
 import React from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { CalendarDays, LogOut, Home } from "lucide-react";
+import { CalendarDays, LogOut, Home, CalendarCheck } from "lucide-react";
 
 export default function PipelineManagerLayout() {
   const { user, signOut } = useAuth();
@@ -16,7 +16,7 @@ export default function PipelineManagerLayout() {
           <div className="flex items-center gap-3 mb-1">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-serif font-bold text-lg" style={{ background: color }}>LR</div>
             <div>
-              <p className="font-bold text-[#1A2830] text-sm">Living Root</p>
+              <p className="font-bold text-[#1A2830] text-sm">Living Roots</p>
               <p className="text-[10px] text-[#7A8690] uppercase tracking-widest">Pipeline</p>
             </div>
           </div>
@@ -34,6 +34,9 @@ export default function PipelineManagerLayout() {
         </nav>
 
         <div className="p-3 border-t border-[#DDD9D0]">
+          <button onClick={() => navigate("/crm")} className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-sm font-semibold text-[#1A2830] hover:bg-[#F7F4ED] transition-all mb-1">
+            <CalendarCheck size={16} /> Bookings &amp; CRM
+          </button>
           <button onClick={() => navigate("/")} className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-sm text-[#7A8690] hover:bg-[#F7F4ED] hover:text-[#1A2830] transition-all mb-1">
             <Home size={16} /> Public site
           </button>

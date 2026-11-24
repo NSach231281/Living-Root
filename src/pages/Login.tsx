@@ -16,7 +16,7 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-1/2 bg-brand-earth relative overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1200"
-          alt="Living Root"
+          alt="Living Roots"
           className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity"
         />
         <div className="relative z-10 flex flex-col justify-between p-16 w-full">
@@ -24,7 +24,7 @@ export default function Login() {
             <div className="w-12 h-12 border-2 border-brand-gold/50 rounded-xl flex items-center justify-center">
               <span className="font-serif text-brand-gold text-2xl font-bold italic">LR</span>
             </div>
-            <span className="font-serif text-white/90 text-xl font-bold">Living Root</span>
+            <span className="font-serif text-white/90 text-xl font-bold">Living Roots</span>
           </Link>
           <div>
             <p className="font-serif text-brand-gold text-sm uppercase tracking-[0.3em] mb-4">JP Nagar, Bangalore</p>
@@ -46,7 +46,7 @@ export default function Login() {
             <div className="w-10 h-10 bg-brand-earth rounded-xl flex items-center justify-center -rotate-6 shadow-xl">
               <span className="font-serif text-brand-gold text-xl font-bold italic">LR</span>
             </div>
-            <span className="font-serif text-brand-earth text-xl font-bold">Living Root</span>
+            <span className="font-serif text-brand-earth text-xl font-bold">Living Roots</span>
           </div>
 
           <h1 className="font-serif text-3xl text-brand-earth font-bold mb-2">Sign in</h1>
@@ -79,7 +79,7 @@ export default function Login() {
 
           <div className="mt-8 pt-8 border-t border-brand-border">
             <Link to="/" className="text-sm text-brand-muted hover:text-brand-spice transition-colors flex items-center gap-2">
-              ← Back to Living Root
+              ← Back to Living Roots
             </Link>
           </div>
         </div>

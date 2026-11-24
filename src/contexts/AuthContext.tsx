@@ -11,7 +11,9 @@ import { ref, get, set } from "firebase/database";
 import { auth, db, googleProvider } from "../firebase";
 import { LRUser } from "../types";
 
-// All partner Gmail addresses — role assigned automatically on sign-in
+// All partner Gmail addresses — role assigned automatically on sign-in.
+// ⚠️ When you add or change someone here, add the same email + role to users/$uid/role
+//    ".validate" in database.rules.json and re-publish the rules (otherwise their role can't be saved).
 const PARTNER_GMAIL_MAP: Record<string, { role: LRUser["role"]; partnerId: string }> = {
   "nsachdeva23121981@gmail.com": { role: "admin",   partnerId: "nitin"   },
   "mthejashree89@gmail.com":   { role: "partner", partnerId: "Teju" },

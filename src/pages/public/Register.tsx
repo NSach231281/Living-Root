@@ -13,8 +13,8 @@ type Step = "info" | "pay" | "done";
 
 const API      = "";
 const UPI_ID   = import.meta.env.VITE_UPI_ID   || "livingroot@yesbank";
-const UPI_NAME = import.meta.env.VITE_UPI_NAME  || "Living Root Space";
-const VENUE    = "Living Root, JP Nagar 5th Phase, Bengaluru";
+const UPI_NAME = import.meta.env.VITE_UPI_NAME  || "Living Roots Space";
+const VENUE    = "Living Roots, JP Nagar 5th Phase, Bengaluru";
 
 export default function Register() {
   const { id } = useParams<{ id: string }>();

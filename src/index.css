@@ -48,3 +48,8 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { @apply bg-brand-border rounded-full; }
 }
+
+/* Bookings: step transition in the 30-second form */
+@keyframes lr-fade-in { from { opacity: 0; transform: translateY(10px); } }
+.animate-fade-in { animation: lr-fade-in .28s ease; }
+@media (prefers-reduced-motion: reduce) { .animate-fade-in { animation: none; } }

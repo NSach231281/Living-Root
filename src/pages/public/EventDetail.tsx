@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 const UPI_ID   = import.meta.env.VITE_UPI_ID   || "livingroot@yesbank";
-const UPI_NAME = import.meta.env.VITE_UPI_NAME  || "Living Root Space";
+const UPI_NAME = import.meta.env.VITE_UPI_NAME  || "Living Roots Space";
 
 type Step = "detail" | "form" | "pay" | "done";
 
@@ -215,7 +215,7 @@ export default function EventDetail() {
             <div className="text-5xl mb-4">🌿</div>
             <h2 className="font-serif text-2xl font-bold text-brand-earth mb-2">Booking received!</h2>
             <p className="text-brand-clay mb-2">We've noted your payment ref <span className="font-bold text-brand-earth">{ref_}</span>.</p>
-            <p className="text-brand-clay mb-8 text-sm">The Living Root team will verify and confirm your booking. You'll see it in <Link to="/my" className="text-brand-spice underline">My Bookings</Link>.</p>
+            <p className="text-brand-clay mb-8 text-sm">The Living Roots team will verify and confirm your booking. You'll see it in <Link to="/my" className="text-brand-spice underline">My Bookings</Link>.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/my" className="btn-primary text-sm">See my bookings</Link>
               <Link to="/events" className="btn-outline text-sm">Browse more events</Link>

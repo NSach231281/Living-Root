@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { PageShell } from "../../components/ui/LoadingScreen";
+import { PageShell } from "../components/ui/LoadingScreen";
 import { FileText, ChevronRight } from "lucide-react";
 
 const LAST_UPDATED = "5 July 2026";
 const COMPANY      = "SANS Collective Ventures";
-const APP          = "Living Root";
+const APP          = "Living Roots";
 const EMAIL        = "livingrootspace@gmail.com";
 
 export default function Terms() {

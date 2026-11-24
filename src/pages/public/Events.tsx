@@ -47,7 +47,7 @@ export default function Events() {
       <div className="max-w-6xl mx-auto px-6 py-20">
         <SectionHeader
           eyebrow="What's on"
-          title="Events at Living Root"
+          title="Events at Living Roots"
           subtitle="Real experiences. Real people. Right in JP Nagar."
         />
 

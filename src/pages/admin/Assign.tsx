@@ -55,12 +55,12 @@ export default function AdminAssign() {
     return () => u.forEach(x => x());
   }, []);
 
-  const allPartners = [...BASE_PARTNERS, ...Object.values(extraPartners)];
+  const allPartners: any[] = [...BASE_PARTNERS, ...Object.values(extraPartners)];
 
   const getOwners = (sid: string) => {
     const a = assignments[sid];
     if (!a) return [];
-    if (typeof a === "string") return allPartners.filter(p => p.id === a);
+    if (typeof a === "string") return allPartners.filter((p: any) => p.id === a);
     return allPartners.filter((p: any) => a[p.id] === true);
   };
 
@@ -87,8 +87,8 @@ export default function AdminAssign() {
   const td = todayStr();
   const todayLog = dailyLogs[td] || {};
   const totalHC  = Object.values(todayLog).reduce((s: number, v: any) => s + (Number(v?.headcount)||0), 0);
-  const pipeVal  = Object.values(leads).reduce((s: number, l: any) => s + (Number(l.value)||0), 0);
-  const confVal  = Object.values(leads).filter((l: any) => l.status==="confirmed").reduce((s: number, l: any) => s + (Number(l.value)||0), 0);
+  const pipeVal: number = (Object.values(leads) as any[]).reduce((s: number, l: any) => s + (Number(l.value)||0), 0);
+  const confVal: number = (Object.values(leads) as any[]).filter((l: any) => l.status==="confirmed").reduce((s: number, l: any) => s + (Number(l.value)||0), 0);
 
   return (
     <div className="p-8" style={{ fontFamily:"ui-sans-serif,system-ui,sans-serif", color:C.dark }}>

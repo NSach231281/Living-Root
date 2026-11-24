@@ -2,12 +2,10 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "events": {
       ".read": true,
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
-
     "bookings": {
       ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'partner')",
       "$bookingId": {
@@ -15,67 +13,74 @@
         ".write": "auth != null"
       }
     },
-
     "users": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        "role": {
+          ".validate": "newData.val() === 'customer' || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || (auth.token.email === 'nsachdeva23121981@gmail.com' && newData.val() === 'admin') || (auth.token.email === 'mthejashree89@gmail.com' && newData.val() === 'partner') || (auth.token.email === 'domesticconnexions@gmail.com' && newData.val() === 'partner') || (auth.token.email === 'seethalakshmitd@gmail.com' && newData.val() === 'partner') || (auth.token.email === 'srushtisnimbalkar@gmail.com' && newData.val() === 'marketing') || (auth.token.email === 'livingrootspace@gmail.com' && newData.val() === 'pipeline_manager')"
+        }
       }
     },
-
     "streams": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "assignments": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
-
     "locked": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
-
     "daily": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "leads": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "pipeline": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "checklist": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "collaborators": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "miscStreams": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'customer'"
     },
-
     "feedback": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "finance": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    "crm": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'partner' || root.child('users').child(auth.uid).child('role').val() === 'marketing' || root.child('users').child(auth.uid).child('role').val() === 'pipeline_manager')",
+      "bookings": {
+        ".write": false,
+        ".indexOn": [
+          "createdAt",
+          "phone"
+        ]
+      },
+      "counters": {
+        ".write": false
+      },
+      "config": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
     }
   }
 }

@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { PageShell } from "../../components/ui/LoadingScreen";
+import { PageShell } from "../components/ui/LoadingScreen";
 import { Shield, Mail, MapPin, ChevronRight } from "lucide-react";
 
 const LAST_UPDATED = "5 July 2026";
 const COMPANY      = "SANS Collective Ventures";
-const APP          = "Living Root";
+const APP          = "Living Roots";
 const ADDRESS      = "301, 14th Main, 15th Cross, 2nd Floor, JP Nagar 5th Phase, Bengaluru – 560078";
 const EMAIL        = "livingrootspace@gmail.com";
 
@@ -85,7 +85,7 @@ export default function Privacy() {
               <li>Send your ticket and booking confirmation by email</li>
               <li>Send your ticket via WhatsApp if you opt in</li>
               <li>Verify entry at the event door (via QR code scan)</li>
-              <li>Send you updates about upcoming events at Living Root (you can opt out at any time)</li>
+              <li>Send you updates about upcoming events at Living Roots (you can opt out at any time)</li>
               <li>Improve our events and programming based on attendance patterns</li>
               <li>Process membership applications and renewals</li>
               <li>Respond to your queries or complaints</li>
@@ -103,7 +103,7 @@ export default function Privacy() {
               communications from us — including booking confirmations, ticket emails, and event reminders.
             </p>
             <p className="mt-3">
-              We may also send you occasional updates about new events and Living Root programming.
+              We may also send you occasional updates about new events and Living Roots programming.
               You can unsubscribe from these at any time by replying STOP to any WhatsApp message or
               clicking Unsubscribe in any email.
             </p>
@@ -116,7 +116,7 @@ export default function Privacy() {
 
           {/* 4 */}
           <Section num="4" title="Third-Party Services">
-            <p>We use the following third-party services to operate Living Root:</p>
+            <p>We use the following third-party services to operate Living Roots:</p>
             <div className="overflow-x-auto mt-4">
               <table className="w-full text-sm border-collapse">
                 <thead>
@@ -182,7 +182,7 @@ export default function Privacy() {
           {/* 7 */}
           <Section num="7" title="Children's Privacy">
             <p>
-              Living Root hosts events that welcome families and children. However, our app and website
+              Living Roots hosts events that welcome families and children. However, our app and website
               are not directed at children under the age of 13. We do not knowingly collect personal
               information from children under 13. If you believe we have inadvertently collected
               such information, please contact us immediately.

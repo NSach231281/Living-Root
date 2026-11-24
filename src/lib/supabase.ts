@@ -7,7 +7,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON) {
   console.warn("⚠️  Supabase env vars missing — check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+// Placeholder values keep the rest of the app working if these env vars are missing
+// (createClient throws on an empty URL, which used to blank the whole site).
+export const supabase = createClient(SUPABASE_URL || "https://placeholder.supabase.co", SUPABASE_ANON || "placeholder-anon-key");
 
 export interface EventRegistration {
   id:            string;

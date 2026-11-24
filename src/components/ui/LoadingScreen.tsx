@@ -3,8 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   Sparkles, Ticket, User, LayoutDashboard, LogOut,
-  Menu, X, Home, Calendar, Heart, ChevronRight,
-} from "lucide-react";
+  Menu, X, Home, Calendar, Heart, ChevronRight, CalendarPlus } from "lucide-react";
 import { useState } from "react";
 
 // ─── Loading Screen ───────────────────────────────────────────────────────────
@@ -34,13 +33,14 @@ export function Navbar() {
           <div className="w-9 h-9 bg-brand-earth rounded-xl flex items-center justify-center -rotate-6 shadow-lg">
             <span className="font-serif text-brand-gold text-lg font-bold italic">LR</span>
           </div>
-          <span className="font-serif text-brand-earth font-bold text-lg hidden sm:block">Living Root</span>
+          <span className="font-serif text-brand-earth font-bold text-lg hidden sm:block">Living Roots</span>
         </Link>
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8">
           <Link to="/membership" className="text-sm font-bold uppercase tracking-widest text-brand-clay hover:text-brand-spice transition-colors">Membership</Link>
           <Link to="/events" className="text-sm font-bold uppercase tracking-widest text-brand-clay hover:text-brand-spice transition-colors">Events</Link>
+          <Link to="/book" className="text-xs font-bold uppercase tracking-widest bg-brand-spice text-white rounded-full py-2 px-5 hover:bg-brand-earth transition-colors">Book the space</Link>
           {user ? (
             <div className="flex items-center gap-4">
               {(isAdmin || isPartner) && (
@@ -74,6 +74,7 @@ export function Navbar() {
       {open && (
         <div className="md:hidden bg-brand-bone border-t border-brand-border shadow-lg">
           <div className="px-4 py-3 space-y-1">
+            <MobileNavLink to="/book" onClick={() => setOpen(false)} label="Book the space" />
             <MobileNavLink to="/events" onClick={() => setOpen(false)} label="Events" />
             <MobileNavLink to="/membership" onClick={() => setOpen(false)} label="Membership" />
             {user ? (
@@ -127,6 +128,10 @@ export function MobileBottomNav() {
       <div className="flex items-center justify-around h-16 px-2">
         <BottomNavItem to="/"         icon={<Home size={20}/>}     label="Home"    active={location.pathname === "/"} />
         <BottomNavItem to="/events"   icon={<Calendar size={20}/>} label="Events"  active={location.pathname.startsWith("/events") || location.pathname.startsWith("/register")} />
+        <Link to="/book" aria-label="Book the space" className="flex flex-col items-center -mt-6">
+          <span className="w-14 h-14 rounded-full bg-brand-spice text-white grid place-items-center shadow-elite border-4 border-brand-bone"><CalendarPlus size={22}/></span>
+          <span className="text-[10px] font-bold tracking-wide text-brand-spice mt-0.5">Book</span>
+        </Link>
         <BottomNavItem to="/membership" icon={<Heart size={20}/>}  label="Join"    active={location.pathname === "/membership"} />
         {user
           ? <BottomNavItem to="/my"   icon={<User size={20}/>}     label="Bookings" active={location.pathname === "/my"} />
@@ -157,7 +162,7 @@ export function Footer() {
             <div className="w-9 h-9 bg-brand-spice rounded-xl flex items-center justify-center -rotate-6">
               <span className="font-serif text-white text-lg font-bold italic">LR</span>
             </div>
-            <span className="font-serif text-white font-bold text-lg">Living Root</span>
+            <span className="font-serif text-white font-bold text-lg">Living Roots</span>
           </div>
           <p className="text-white/60 text-sm leading-relaxed mb-4">
             Your neighbourhood social escape. Community · Connect · Grow.

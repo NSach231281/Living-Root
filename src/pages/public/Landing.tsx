@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { onValue, ref } from "firebase/database";
 import { db } from "../../firebase";
 import { PageShell, EventCard, VibeBadge } from "../../components/ui/LoadingScreen";
-import { ArrowRight, MapPin, Users, Sparkles, Star } from "lucide-react";
+import { ArrowRight, MapPin, Users, Sparkles, Star, CalendarCheck } from "lucide-react";
 
 const VIBES = ["High Energy", "Chill", "Safe Social", "Creative", "Wellness", "Family", "Kids"];
 
@@ -54,8 +54,8 @@ export default function Landing() {
             <Link to="/events" className="btn-primary text-sm py-4 px-8 flex items-center gap-2">
               Explore events <ArrowRight size={16} />
             </Link>
-            <Link to="/login" className="btn-secondary text-sm py-4 px-8 border-white/30 text-white hover:bg-white/10">
-              Sign in
+            <Link to="/book" className="text-sm font-bold uppercase tracking-widest py-4 px-8 rounded-full border-2 border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-earth transition-colors flex items-center gap-2">
+              <CalendarCheck size={16} /> Book the space
             </Link>
           </div>
 
@@ -120,7 +120,7 @@ export default function Landing() {
               Not a café. Not a club.<br />Something better.
             </h2>
             <p className="text-white/70 text-lg leading-relaxed mb-8">
-              Living Root is a curated social space for Bangalore's curious, creative, and connected. We host events across 7 formats — from Wellness mornings to Friday Jams to ticketed experiences — all under one thoughtfully designed roof.
+              Living Roots is a curated social space for Bangalore's curious, creative, and connected. We host events across 7 formats — from Wellness mornings to Friday Jams to ticketed experiences — all under one thoughtfully designed roof.
             </p>
             <div className="flex flex-col gap-4">
               {[
@@ -138,10 +138,30 @@ export default function Landing() {
           <div className="relative">
             <img
               src="https://images.unsplash.com/photo-1544787210-2283034f71db?q=80&w=800"
-              alt="Living Root space"
+              alt="Living Roots space"
               className="rounded-3xl w-full h-80 object-cover shadow-2xl"
             />
           </div>
+        </div>
+      </section>
+
+      {/* Host your event — the 30-second booking form */}
+      <section className="bg-brand-earth text-white py-16 px-6">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-[1.2fr_1fr] gap-10 items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand-gold mb-4">Host at Living Roots</p>
+            <h2 className="font-serif text-4xl font-bold mb-4 leading-tight">Block the space in 30 seconds.</h2>
+            <p className="text-white/70 max-w-lg mb-8">Workshops, classes, screenings, shoots, parties. Pick a date, see your price instantly, pay the advance by UPI and your slot is yours. First event on a weekday? 10% off.</p>
+            <Link to="/book" className="btn-primary text-sm py-4 px-8 inline-flex items-center gap-2">
+              Check dates &amp; price <ArrowRight size={16} />
+            </Link>
+          </div>
+          <ul className="grid gap-3 text-sm">
+            {[["Under 25 guests", "₹2,100 / hr"], ["25 to 50 guests", "₹3,000 / hr"], ["More than 50", "₹3,600 / hr"], ["Sell tickets with us", "₹1,500 / hr + 60% of sales to you"]].map(([k, v]) => (
+              <li key={k} className="flex justify-between gap-4 border-b border-white/15 pb-3"><span className="text-white/70">{k}</span><span className="font-semibold text-right">{v}</span></li>
+            ))}
+            <li className="text-white/50 text-xs">Plus GST. First 30 minutes of set-up and wrap-up free.</li>
+          </ul>
         </div>
       </section>
 
@@ -162,7 +182,7 @@ export default function Landing() {
             <div className="w-7 h-7 bg-brand-earth rounded-lg flex items-center justify-center">
               <span className="font-serif text-brand-gold text-sm font-bold italic">LR</span>
             </div>
-            <span className="font-bold text-brand-earth">Living Root Space</span>
+            <span className="font-bold text-brand-earth">Living Roots Space</span>
             <span>· JP Nagar, Bangalore</span>
           </div>
           <div className="flex gap-6">
