@@ -98,6 +98,8 @@ export function publicView(b: Booking): PublicBooking {
 
 export async function createBooking(body: any, staff: { email: string } | null) {
   if (body?.website) throw new HttpError(400, "Spam"); // honeypot
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT && process.env.LR_DEV_MOCK !== "1")
+    throw new HttpError(503, "Online booking is being set up — please WhatsApp us to book this slot. (Admin: add FIREBASE_SERVICE_ACCOUNT, see BOOKINGS_SETUP.md step 2.)");
   const rc = await loadRateCard();
   const name = str(body?.name, 80), phone = str(body?.phone, 20).replace(/[^\d+]/g, ""), email = str(body?.email, 120).toLowerCase();
   if (!name) throw new HttpError(400, "Please enter your name");

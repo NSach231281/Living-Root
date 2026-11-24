@@ -4,6 +4,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { staffFromRequest, loadRateCard } from "../src/bookings/server/admin.js";
 import * as core from "../src/bookings/server/core.js";
 import { busyBlocks } from "../src/bookings/shared/pricing.js";
+import { withDefaults } from "../src/bookings/shared/rateCard.js";
 import { addDays, todayIST } from "../src/bookings/shared/dates.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -19,11 +20,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       // ── Public ──
       case "config": {   // rate card + busy slots for the booking form
-        const rc = await loadRateCard();
         const from = todayIST(), to = addDays(from, 400);
-        const busy = busyBlocks(await core.allBookings(), rc, from, to);
-        res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-        return res.json({ rateCard: rc, busy, today: from });
+        try {
+          const rc = await loadRateCard();
+          const busy = busyBlocks(await core.allBookings(), rc, from, to);
+          res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
+          return res.json({ rateCard: rc, busy, today: from });
+        } catch (e: any) {
+          // Server not set up yet (no FIREBASE_SERVICE_ACCOUNT): still let people try the form with default prices.
+          console.error("config fallback", e?.message);
+          return res.json({ rateCard: withDefaults(null), busy: [], today: from, setupNeeded: true });
+        }
       }
       case "create": {
         if (req.method !== "POST") return res.status(405).end();
