@@ -139,7 +139,8 @@ export interface Payment {
   verifiedAt?: number;
   note?:     string;
   createdAt: number;
-  pendingAlertAt?: number;   // last 9 PM "still not in the bank" alert
+  pendingAlertAt?: number;   // last 9 PM "screenshot still pending" alert
+  proof?:    boolean;         // payment screenshot uploaded (image in crm/proofs/<booking>/<payment>)
 }
 
 export interface PartnerBank {
@@ -198,10 +199,10 @@ export interface Booking {
 
 /** Derived money position — never stored, always computed from quote + payments. */
 export interface MoneyStatus {
-  verifiedPaid:   number;
-  claimedPaid:    number;   // includes unverified client claims
-  outstanding:    number;   // grandTotal − verifiedPaid
-  pendingVerification: number;
+  verifiedPaid:   number;   // payments with a screenshot / bank match (team only)
+  claimedPaid:    number;   // everything the client has paid, incl. UPI refs not yet checked
+  outstanding:    number;   // grandTotal − claimedPaid
+  pendingVerification: number;  // paid but screenshot not collected yet (team only)
   firstPaidOn?:   string;
   lastUtr?:       string;
   status: "unpaid" | "awaiting_verification" | "partial" | "paid" | "overpaid";

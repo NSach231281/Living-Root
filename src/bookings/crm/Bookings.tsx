@@ -41,7 +41,7 @@ export default function Bookings() {
     return {
       enquiries: rows.filter(r => new Date(r.createdAt + 330 * 60000).toISOString().slice(0, 7) === monthStart).length,
       confirmed: live.filter(r => r.stage === "confirmed" || r.stage === "completed").reduce((s, r) => s + r.quote.grandTotal, 0),
-      collected: live.reduce((s, r) => s + r.m.verifiedPaid, 0),
+      collected: live.reduce((s, r) => s + r.m.claimedPaid, 0),
       outstanding: live.filter(r => r.stage === "confirmed" || r.stage === "completed").reduce((s, r) => s + Math.max(0, r.m.outstanding), 0),
       verify: rows.filter(r => r.m.pendingVerification > 0).length,
     };
@@ -50,7 +50,7 @@ export default function Bookings() {
   return (
     <div className="max-w-7xl mx-auto px-3 py-4">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-        {[["Enquiries this month", kpi.enquiries], ["Confirmed value", inr(kpi.confirmed)], ["Collected", inr(kpi.collected)], ["Outstanding (confirmed)", inr(kpi.outstanding)], ["Payments to verify", kpi.verify]].map(([l, v]) =>
+        {[["Enquiries this month", kpi.enquiries], ["Confirmed value", inr(kpi.confirmed)], ["Collected", inr(kpi.collected)], ["Outstanding (confirmed)", inr(kpi.outstanding)], ["Screenshots to collect", kpi.verify]].map(([l, v]) =>
           <div key={l as string} className="bg-white rounded-xl border border-brand-border p-3"><div className="text-[10px] uppercase tracking-widest text-brand-muted">{l}</div><div className="font-serif font-bold text-xl">{v}</div></div>)}
       </div>
 
@@ -85,7 +85,7 @@ export default function Bookings() {
                   <td className="px-2 py-2 text-right text-xs text-emerald-700 whitespace-nowrap">{r.quote.discount > 0 ? inr(r.quote.discount) : ""}</td>
                   <td className="px-2 py-2 text-right whitespace-nowrap">{inr(r.quote.advance)}</td>
                   <td className="px-2 py-2 text-xs whitespace-nowrap">{r.m.firstPaidOn ? fmtDate(r.m.firstPaidOn, false) : ""}</td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap">{r.m.verifiedPaid ? inr(r.m.verifiedPaid) : ""}{r.m.pendingVerification > 0 && <div className="text-[10px] text-amber-700">+{inr(r.m.pendingVerification)} ?</div>}</td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap">{r.m.claimedPaid ? inr(r.m.claimedPaid) : ""}{r.m.pendingVerification > 0 && <div className="text-[10px] text-amber-700 font-bold">screenshot due</div>}</td>
                   <td className="px-2 py-2 text-right whitespace-nowrap font-medium">{r.m.outstanding > 0.5 ? inr(r.m.outstanding) : "—"}</td>
                   <td className={`px-2 py-2 text-xs whitespace-nowrap ${r.m.nextDue?.dueDate && r.m.nextDue.dueDate < today ? "text-red-700 font-bold" : ""}`}>{r.m.nextDue?.dueDate ? fmtDate(r.m.nextDue.dueDate, false) : ""}</td>
                   <td className="px-2 py-2"><Pill cls={STAGE_PILL[r.stage]}>{STAGE_LABEL[r.stage]}</Pill></td>

@@ -16,10 +16,10 @@ Everything runs on what you already have (Vercel + Firebase) using free tiers on
 ## How a booking flows
 
 1. **Enquiry** — client (or rep) fills `/book`. Price is calculated from the rate card. Client gets the quote on WhatsApp (and email, if given); the team gets an email at livingrootspace@gmail.com + Telegram / WhatsApp ping.
-2. **Advance** — client scans the QR on their page (amount + booking ref pre-filled) and taps **I've paid** with the UTR. The slot goes **on hold** (no one else can book it), client gets "payment received", team gets "💰 verify".
-3. **Verify** — a rep checks the Yes Bank app and taps **Verify** in the CRM (or uploads the bank statement in *Reconcile* and verifies all matches at once). The booking becomes **Confirmed** → client gets a confirmation email with a calendar invite → it appears on your calendar (feed + Notion).
+2. **Advance** — client scans the QR on their page (amount + booking ref pre-filled), pays, and enters the UPI reference. **The booking is confirmed for them right away**: the date is blocked, they get the confirmation (WhatsApp + email with calendar invite), and the balance reminders are scheduled. The client never sees any "verification" step.
+3. **Screenshot (team only)** — the team gets a "📸 collect screenshot" alert with a one-tap WhatsApp message asking the client for their payment screenshot. A rep checks it against the Yes Bank app and taps **Upload screenshot** on the booking in the CRM — that marks the payment checked. (No screenshot but you saw the money in the bank app? Tap **Checked in bank app**. Or upload the bank statement in *Reconcile*.)
 4. **Balance** — at 8:30 AM on the due date (the day before the event, configurable) the client gets a "balance due today" email; overdue reminders follow every other day for a week. Reps also have a one-tap WhatsApp reminder.
-5. **9 PM pending check** — every evening, any "I've paid" that still isn't verified against the bank is sent to the team with one-tap links: *Verify in CRM* or *Ask client on WhatsApp* (pre-written message asking them to check / pay again).
+5. **9 PM check** — every evening, any payment whose screenshot still isn't uploaded is sent to the team with one-tap links: *Ask for screenshot on WhatsApp* and *Upload in CRM*. If the money never arrived, the rep raises the payment with the client again.
 6. **Reconciliation** — the morning after the event: fully paid → marked **Completed**; unpaid → flagged in the daily digest and *Reconcile → Finished events* until settled.
 
 > Why "verify" is a tap and not automatic: your QR is a static Yes Bank merchant QR, which doesn't notify any app when money arrives. If you later get a payment gateway (Razorpay etc.) with webhooks, step 3 can become automatic.
@@ -94,7 +94,7 @@ Quotes, payment receipts, confirmations and **balance reminders the day before t
 | Name | Body |
 |---|---|
 | `lr_quote` | Hi {{1}}, thank you for choosing Living Roots! Your quote for {{2}} on {{3}} is ₹{{4}} including GST. Pay the advance of ₹{{5}} to block your date: {{6}} |
-| `lr_payment_received` | Hi {{1}}, we have received your payment details of ₹{{2}} for booking {{3}}. Your slot is on hold while we confirm the payment with our bank. |
+| `lr_payment_received` | Hi {{1}}, thank you! We have received your payment of ₹{{2}} for your Living Roots booking {{3}}. |
 | `lr_booking_confirmed` | Hi {{1}}, your booking {{2}} at Living Roots on {{3}} is confirmed. Paid so far: ₹{{4}}. Balance: ₹{{5}}, due {{6}}. Booking details: {{7}} |
 | `lr_balance_due` | Hi {{1}}, a reminder from Living Roots: the balance of ₹{{2}} for {{3}} on {{4}} is due today. Pay here: {{5}} |
 | `lr_payment_overdue` | Hi {{1}}, the payment of ₹{{2}} for your Living Roots booking {{3}} was due on {{4}} and is still pending. Pay here: {{5}} |

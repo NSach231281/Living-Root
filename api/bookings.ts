@@ -63,6 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case "update":        return res.json(await core.updateBooking(String(body.id), body, staff));
       case "addPayment":    return res.json(await core.addPayment(String(body.id), body, staff));
       case "verify":        return res.json(await core.verifyPayment(String(body.id), String(body.paymentId), body.verified !== false, staff, body.notify !== false));
+      case "uploadProof":   return res.json(await core.uploadProof(String(body.id), String(body.paymentId), String(body.image || ""), staff));
+      case "getProof":      return res.json(await core.getProof(String(body.id), String(body.paymentId)));
       case "deletePayment": return res.json(await core.deletePayment(String(body.id), String(body.paymentId)));
       case "remind":        return res.json(await core.sendReminderNow(String(body.id)));
       case "runEvening":    return res.json(await core.runEvening({ dryRun: !!body.dryRun }));

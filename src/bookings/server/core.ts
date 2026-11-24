@@ -85,12 +85,18 @@ export function sanitizeInput(raw: any, staff: boolean, rc: RateCard): QuoteInpu
 
 function money(b: Booking) { return moneyStatus(b); }
 
+/** What the client sees: every payment they reported counts as received; no "verification" anywhere. */
+function customerMoney(b: Booking): MoneyStatus {
+  const m = money(b);
+  return { ...m, verifiedPaid: m.claimedPaid, pendingVerification: 0 };
+}
+
 export function publicView(b: Booking): PublicBooking {
   return {
     id: b.id, ref: b.ref, quoteNo: b.quoteNo, createdAt: b.createdAt, stage: b.stage,
     name: b.name, phone: b.phone, email: b.email, organisation: b.organisation, gstin: b.gstin,
-    title: b.title, purpose: b.purpose, requests: b.requests, input: b.input, quote: b.quote, money: money(b),
-    payments: Object.values(b.payments || {}).map(p => ({ amount: p.amount, utr: p.utr, paidOn: p.paidOn, verified: p.verified })),
+    title: b.title, purpose: b.purpose, requests: b.requests, input: b.input, quote: b.quote, money: customerMoney(b),
+    payments: Object.values(b.payments || {}).map(p => ({ amount: p.amount, utr: p.utr, paidOn: p.paidOn, verified: true })),
   };
 }
 
@@ -190,18 +196,34 @@ export async function claimPayment(id: string, body: any) {
   });
   const pr = bRef(id).child("payments").push(); p.id = pr.key!;
   await pr.set(p);
-  await bRef(id).update({ updatedAt: Date.now(), ...(b.stage === "enquiry" ? { stage: "quoted" } : {}) });
+  const res = await afterMoneyChange(b, p, true);          // confirms the booking + thanks the client
   const fresh = await getBooking(id);
-
-  const cm = T.clientPaymentNoted(fresh, rc, p, clientLink(fresh));
-  const sm = T.staffPaymentClaim(fresh, rc, p, crmLink(fresh), conflict ? `Slot overlaps confirmed booking ${conflict.booking.ref} (${conflict.booking.name})` : undefined);
-  await Promise.all([
-    fresh.email ? sendEmail(fresh.email, cm.subject, cm.html).then(ok => logEmail(fresh, "payment_noted", ok)) : null,
-    sendWa(fresh.phone, "lr_payment_received", [first(fresh.name), money2(p.amount), fresh.ref]).then(ok => logEmail(fresh, "wa_payment_noted", ok, fresh.phone)),
-    alertStaff(sm.subject, sm.html, sm.tg),
-  ]);
-  await syncCalendar(fresh, rc);
+  const sm = T.staffPaymentClaim(fresh, rc, p, crmLink(fresh), screenshotAsk(fresh, p), conflict ? `Slot overlaps confirmed booking ${conflict.booking.ref} (${conflict.booking.name})` : undefined);
+  await alertStaff(sm.subject, sm.html, sm.tg, `${res.confirmed ? "New booking" : "Payment"}: ${fresh.ref} ${first(fresh.name)} Rs ${money2(p.amount)} — collect the payment screenshot on WhatsApp and upload it in the CRM.`);
   return publicView(fresh);
+}
+
+/** wa.me link a rep taps to ask the client for the payment screenshot. */
+export function screenshotAsk(b: Booking, p: Payment) {
+  const text = `Hi ${first(b.name)}, thank you for your payment of ₹${money2(p.amount)} for your Living Roots booking ${b.ref} 🌿 Could you please share the payment screenshot here for our records?`;
+  return `https://wa.me/${waNumber(b.phone)}?text=${encodeURIComponent(text)}`;
+}
+
+/** Rep uploads the client's payment screenshot → payment marked checked. Image kept in crm/proofs (team only). */
+export async function uploadProof(id: string, paymentId: string, image: string, staff: { email: string }) {
+  const b = await getBooking(id);
+  if (!b.payments?.[paymentId]) throw new HttpError(404, "Payment not found");
+  if (!/^data:image\/(jpeg|png|webp);base64,/.test(image || "")) throw new HttpError(400, "Please choose an image (JPG or PNG)");
+  if (image.length > 2_000_000) throw new HttpError(400, "Image too large — please try again (it is compressed automatically)");
+  await adb().ref(`crm/proofs/${id}/${paymentId}`).set({ image, at: Date.now(), by: staff.email });
+  await bRef(id).child(`payments/${paymentId}`).update({ proof: true, verified: true, verifiedBy: staff.email, verifiedAt: Date.now() });
+  return afterMoneyChange(b, undefined, false);
+}
+
+export async function getProof(id: string, paymentId: string) {
+  const s = await adb().ref(`crm/proofs/${id}/${paymentId}`).get();
+  if (!s.exists()) throw new HttpError(404, "No screenshot uploaded");
+  return s.val();
 }
 
 /** Staff records a payment (cash / bank transfer / UPI seen in the bank app). */
@@ -226,11 +248,12 @@ export async function verifyPayment(id: string, paymentId: string, verified: boo
   await bRef(id).child(`payments/${paymentId}`).update(verified
     ? { verified: true, verifiedBy: staff.email, verifiedAt: Date.now() }
     : { verified: false, verifiedBy: null, verifiedAt: null });
-  return afterMoneyChange(b, { ...p, verified }, notify && verified);
+  return afterMoneyChange(b, { ...p, verified }, false);   // internal check only — the client was already thanked
 }
 
 export async function deletePayment(id: string, paymentId: string) {
   const b = await getBooking(id);
+  await adb().ref(`crm/proofs/${id}/${paymentId}`).remove();
   await bRef(id).child(`payments/${paymentId}`).remove();
   return afterMoneyChange(b, undefined, false);
 }
@@ -243,19 +266,21 @@ async function afterMoneyChange(before: Booking, p: Payment | undefined, notify:
   const advanceDue = b.quote.schedule.filter(s => s.dueDate === "").reduce((s, x) => s + x.amount, 0);
   const patch: any = { updatedAt: Date.now() };
   let firstConfirm = false;
-  if (["enquiry", "quoted"].includes(b.stage) && m.verifiedPaid >= advanceDue - 0.5 && m.verifiedPaid > 0) {
+  if (["enquiry", "quoted"].includes(b.stage) && m.claimedPaid >= advanceDue - 0.5 && m.claimedPaid > 0) {
     patch.stage = "confirmed"; patch.confirmedAt = Date.now(); firstConfirm = true;
   }
   if (b.stage === "completed" && m.outstanding <= 0.5 && !b.reconciledAt) patch.reconciledAt = Date.now();
   await bRef(b.id).update(patch);
   const fresh = { ...b, ...patch } as Booking;
-  if (notify && p?.verified) {
+  if (notify && p) {
     const mm = money(fresh);
-    const ok = await sendWa(fresh.phone, "lr_booking_confirmed", [first(fresh.name), fresh.ref, describeWhen(fresh.input, rc), money2(mm.verifiedPaid), money2(Math.max(0, mm.outstanding)), mm.nextDue?.dueDate ? fmtDate(mm.nextDue.dueDate) : "-", clientLink(fresh)]);
+    const ok = firstConfirm
+      ? await sendWa(fresh.phone, "lr_booking_confirmed", [first(fresh.name), fresh.ref, describeWhen(fresh.input, rc), money2(mm.claimedPaid), money2(Math.max(0, mm.outstanding)), mm.nextDue?.dueDate ? fmtDate(mm.nextDue.dueDate) : "-", clientLink(fresh)])
+      : await sendWa(fresh.phone, "lr_payment_received", [first(fresh.name), money2(p.amount), fresh.ref]);
     await logEmail(fresh, firstConfirm ? "wa_confirmed" : "wa_receipt", ok, fresh.phone);
   }
-  if (notify && p?.verified && fresh.email) {
-    const e = T.clientConfirmed(fresh, rc, money(fresh), clientLink(fresh), firstConfirm, p);
+  if (notify && p && fresh.email) {
+    const e = T.clientConfirmed(fresh, rc, customerMoney(fresh), clientLink(fresh), firstConfirm, p);
     const att = firstConfirm ? [{ filename: "living-roots-booking.ics", contentType: "text/calendar", content: buildIcs(bookingIcsEvents(fresh, rc, { forClient: true, appUrl: APP_URL }), "Living Roots") }] : [];
     const ok = await sendEmail(fresh.email, e.subject, e.html, att);
     await logEmail(fresh, firstConfirm ? "confirmed" : "receipt", ok);
@@ -362,7 +387,7 @@ export async function runDaily(opts: { today?: string; dryRun?: boolean } = {}) 
     if (["cancelled", "lost"].includes(b.stage)) continue;
     const m: MoneyStatus = money(b);
     const ref = bRef(b.id);
-    if (m.pendingVerification > 0) sec.verify.push({ b, m, note: `${m.pendingVerification.toLocaleString("en-IN")} claimed, UTR ${m.lastUtr}` });
+    if (m.pendingVerification > 0) sec.verify.push({ b, m, note: `₹${m.pendingVerification.toLocaleString("en-IN")} paid, UTR ${m.lastUtr} — screenshot not uploaded` });
 
     // 1) Balance / monthly reminders — sent on the due date (= the day before the event by default)
     if (b.stage === "confirmed") {
@@ -406,7 +431,7 @@ export async function runDaily(opts: { today?: string; dryRun?: boolean } = {}) 
   }
 
   const d = T.staffDigest(rc, [
-    { title: "Payments to verify", items: sec.verify },
+    { title: "Payment screenshots to collect", items: sec.verify },
     { title: "Reconciliation — events that are over", items: sec.recon },
     { title: "Balance due today (client reminded)", items: sec.dueToday },
     { title: "Overdue payments", items: sec.overdue },
@@ -417,9 +442,10 @@ export async function runDaily(opts: { today?: string; dryRun?: boolean } = {}) 
   return { today, remindersSent: sent, counts: Object.fromEntries(Object.entries(sec).map(([k, v]) => [k, v.length])) };
 }
 
-// ── Evening job (9 PM): client payments still not matched to the bank ───────
-// A client's "I've paid" holds the slot immediately. If by end of day the money
-// hasn't been verified (bank statement / Yes Bank app), the team is told to chase it.
+// ── Evening job (9 PM): payment screenshots still to collect ────────────────
+// A client's UPI reference confirms the booking straight away. A rep then collects the
+// payment screenshot on WhatsApp and uploads it in the CRM; anything still missing at
+// 9 PM is sent to the team.
 
 export async function runEvening(opts: { dryRun?: boolean } = {}) {
   const rc = await loadRateCard();
@@ -432,23 +458,22 @@ export async function runEvening(opts: { dryRun?: boolean } = {}) {
   pending.sort((x, y) => x.p.createdAt - y.p.createdAt);
   const rows = pending.map(({ b, p }) => {
     const age = daysBetween(p.paidOn, todayIST());
-    const ask = `Hi ${first(b.name)}, we haven't been able to find your payment of ₹${money2(p.amount)} (UPI ref ${p.utr}) for booking ${b.ref} in our bank yet. Could you please check and share the payment screenshot, or pay again here: ${clientLink(b)}`;
-    const wa = `https://wa.me/${waNumber(b.phone)}?text=${encodeURIComponent(ask)}`;
+    const wa = screenshotAsk(b, p);
     return { b, p, age, wa };
   });
   const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#2C1810">
-<p><b>${pending.length} client payment${pending.length > 1 ? "s are" : " is"} still not matched to the bank.</b> The slot is on hold for each. Check the Yes Bank app / today's statement; if the money hasn't arrived, ask the client to pay again (one tap below).</p>
+<p><b>${pending.length} payment screenshot${pending.length > 1 ? "s are" : " is"} still not uploaded.</b> These bookings are confirmed for the client. Ask for the screenshot on WhatsApp (one tap below), check it against the Yes Bank app, and upload it in the CRM. If the money never arrived, raise the payment with the client again.</p>
 <table cellpadding="6" style="border-collapse:collapse;font-size:13px">${rows.map(r => `<tr style="border-bottom:1px solid #E8DCC8">
 <td><b>${r.b.ref}</b><br>${esc(r.b.name)}<br>${esc(r.b.phone)}</td><td>₹${money2(r.p.amount)}<br>UTR ${esc(r.p.utr)}<br>claimed ${fmtDate(r.p.paidOn, false)}${r.age >= 1 ? ` · <b style="color:#A32D2D">${r.age} day${r.age > 1 ? "s" : ""} pending</b>` : ""}</td>
 <td>${esc(r.b.title)}<br>${esc(describeWhen(r.b.input, rc))}</td>
-<td><a href="${crmLink(r.b)}">Verify in CRM</a><br><a href="${r.wa}">Ask client on WhatsApp</a></td></tr>`).join("")}</table></div>`;
-  const tg = `⏳ <b>${pending.length} payment${pending.length > 1 ? "s" : ""} still pending at day end</b>\n` + rows.map(r =>
-    `• ${r.b.ref} ${esc(r.b.name)} — ₹${money2(r.p.amount)} UTR <code>${esc(r.p.utr)}</code>${r.age >= 1 ? ` (${r.age}d)` : ""}\n  <a href="${crmLink(r.b)}">verify</a> · <a href="${r.wa}">ask client</a>`).join("\n");
+<td><a href="${r.wa}">Ask for screenshot on WhatsApp</a><br><a href="${crmLink(r.b)}">Upload in CRM</a></td></tr>`).join("")}</table></div>`;
+  const tg = `📸 <b>${pending.length} payment screenshot${pending.length > 1 ? "s" : ""} still to collect</b>\n` + rows.map(r =>
+    `• ${r.b.ref} ${esc(r.b.name)} — ₹${money2(r.p.amount)} UTR <code>${esc(r.p.utr)}</code>${r.age >= 1 ? ` (${r.age}d)` : ""}\n  <a href="${r.wa}">ask on WhatsApp</a> · <a href="${crmLink(r.b)}">upload</a>`).join("\n");
   if (!opts.dryRun) {
     await Promise.all([
-      sendEmail(STAFF_EMAILS, `⏳ ${pending.length} payment${pending.length > 1 ? "s" : ""} still pending — follow up today`, html),
+      sendEmail(STAFF_EMAILS, `📸 ${pending.length} payment screenshot${pending.length > 1 ? "s" : ""} still to collect`, html),
       telegram(tg),
-      waTeam(`${pending.length} client payment(s) still not matched to the bank: ${rows.map(r => `${r.b.ref} ${first(r.b.name)} Rs ${money2(r.p.amount)}`).join("; ")}. Check the CRM and follow up.`),
+      waTeam(`${pending.length} payment screenshot(s) still to collect: ${rows.map(r => `${r.b.ref} ${first(r.b.name)} Rs ${money2(r.p.amount)}`).join("; ")}. Ask the client on WhatsApp and upload in the CRM.`),
     ]);
     for (const r of rows) await bRef(r.b.id).child(`payments/${r.p.id}`).update({ pendingAlertAt: Date.now() });
   }

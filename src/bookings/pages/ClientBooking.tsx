@@ -9,7 +9,7 @@ import type { RateCard } from "../shared/rateCard";
 import { describeWhen, expandSessions, upiLink, TYPE_LABEL } from "../shared/pricing";
 import { buildIcs, bookingIcsEvents, googleCalLink } from "../shared/ics";
 import { fmtDate, fmtTime, inr, inr2, todayIST } from "../shared/dates";
-import { Copy, CheckCircle2, Smartphone, Printer, CalendarPlus, MessageCircle, Clock, PartyPopper } from "lucide-react";
+import { Copy, CheckCircle2, Smartphone, Printer, CalendarPlus, MessageCircle, PartyPopper } from "lucide-react";
 
 export default function ClientBooking() {
   const { id = "" } = useParams();
@@ -24,11 +24,6 @@ export default function ClientBooking() {
 
   const load = useCallback(() => api.get(id).then(setB).catch(e => setErr(e.message)), [id]);
   useEffect(() => { load(); api.config().then(x => setRc(x.rateCard)).catch(() => {}); }, [load]);
-  // While a payment is being verified, poll so the page flips to "Confirmed" by itself
-  useEffect(() => {
-    if (!b || b.money.pendingVerification <= 0) return;
-    const t = setInterval(load, 20000); return () => clearInterval(t);
-  }, [b, load]);
 
   const next = b?.money.nextDue;
   useEffect(() => { if (next) setPay(p => ({ ...p, amount: String(next.due) })); }, [next?.id, next?.due]);
@@ -39,8 +34,7 @@ export default function ClientBooking() {
   const m = b.money;
   const confirmed = b.stage === "confirmed" || b.stage === "completed";
   const closed = b.stage === "cancelled" || b.stage === "lost";
-  const verifying = m.pendingVerification > 0;
-  const dueNow = next ? Math.max(0, next.due - m.pendingVerification) : 0;
+  const dueNow = next ? next.due : 0;
   const upi = upiLink(rc, dueNow, `${b.ref} ${b.title}`);
   const sessions = expandSessions(b.input, rc);
   const copy = (t: string, k: string) => { navigator.clipboard.writeText(t); setCopied(k); setTimeout(() => setCopied(""), 1800); };
@@ -49,7 +43,6 @@ export default function ClientBooking() {
   const status = closed ? ["Closed", "This booking was cancelled. Contact us to rebook.", "bg-stone-200 text-stone-700"]
     : m.status === "paid" ? ["Confirmed · fully paid", "See you at Living Roots!", "bg-emerald-600 text-white"]
     : confirmed ? ["Confirmed", next?.dueDate ? `Next payment ${inr(next.due)} due ${fmtDate(next.dueDate)}` : "Your date is blocked.", "bg-emerald-600 text-white"]
-    : verifying ? ["Payment being verified", "We're matching your payment with the bank — usually within a few hours.", "bg-amber-500 text-white"]
     : ["Awaiting advance", `Pay ${inr(dueNow)} to block your date — slots are given on a first-paid basis.`, "bg-brand-spice text-white"];
 
   async function claim(e: React.FormEvent) {
@@ -66,7 +59,7 @@ export default function ClientBooking() {
 
   return (
     <BookingShell>
-      {params.get("new") && !verifying && !confirmed && <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl p-3 mb-4 text-sm flex gap-2">
+      {params.get("new") && !confirmed && <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl p-3 mb-4 text-sm flex gap-2">
         <CheckCircle2 size={18} className="shrink-0"/><span>Your quote is ready{b.email ? ` and a copy is on its way to ${b.email}` : " and a copy is on its way to your WhatsApp"}. <b>Bookmark this page</b> — it's your booking link.</span></div>}
 
       <div className={`rounded-2xl p-4 mb-4 ${status[2]}`}>
@@ -78,7 +71,7 @@ export default function ClientBooking() {
       <Section title={b.title}>
         <div className="text-sm space-y-1">
           <div><span className="text-brand-muted">For:</span> <b>{b.name}</b>{b.organisation ? ` · ${b.organisation}` : ""}</div>
-          <div><span className="text-brand-muted">What:</span> {TYPE_LABEL[b.input.type]} · {b.purpose}{b.input.guests ? ` · ${b.input.guests} guests` : ""}</div>
+          <div><span className="text-brand-muted">What:</span> {TYPE_LABEL[b.input.type]} · {b.input.event ? `${rc.tierLabels[b.input.event.guestsTier]} guests` : `${b.purpose}${b.input.guests ? ` · ${b.input.guests} guests` : ""}`}</div>
           <div><span className="text-brand-muted">When:</span> {describeWhen(b.input, rc)}</div>
         </div>
         {sessions.length > 1 && <details className="mt-2 text-xs"><summary className="cursor-pointer text-brand-spice font-bold">All {sessions.length} sessions</summary>
@@ -105,7 +98,7 @@ export default function ClientBooking() {
         </div>
 
         <form onSubmit={claim} className="mt-4 border-t border-brand-sand pt-4">
-          <p className="font-bold text-sm mb-2">Paid? Tell us so we can confirm faster</p>
+          <p className="font-bold text-sm mb-2">Paid? Enter your UPI reference to confirm your booking</p>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Amount paid (₹)"><input required type="number" step="0.01" min={1} className="input" value={pay.amount} onChange={e => setPay({ ...pay, amount: e.target.value })}/></Field>
             <Field label="Paid on"><input required type="date" className="input" value={pay.paidOn} onChange={e => setPay({ ...pay, paidOn: e.target.value })}/></Field>
@@ -117,8 +110,8 @@ export default function ClientBooking() {
         </form>
       </Section>}
 
-      {justPaid && <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-sm flex gap-2"><Clock size={18} className="shrink-0 text-amber-700"/>
-        <span>Thank you! We've noted your payment and your slot is on hold. You'll get a confirmation on WhatsApp once our team verifies it with the bank.</span></div>}
+      {justPaid && <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mb-4 text-sm flex gap-2"><CheckCircle2 size={18} className="shrink-0 text-emerald-700"/>
+        <span>Thank you — payment received and your booking is confirmed. Our team will be in touch on WhatsApp.</span></div>}
 
       {m.status === "paid" && <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mb-4 text-sm flex gap-2"><PartyPopper size={18} className="shrink-0 text-emerald-700"/><span>All paid — thank you! Nothing more is due.</span></div>}
 
@@ -126,13 +119,13 @@ export default function ClientBooking() {
         <QuoteTable q={b.quote}/>
       </Section>
 
-      <Section title="Payment schedule" right={<span className="text-xs text-brand-muted">Paid {inr(m.verifiedPaid)}{verifying ? ` · ${inr(m.pendingVerification)} verifying` : ""}</span>}>
+      <Section title="Payment schedule" right={<span className="text-xs text-brand-muted">Paid {inr(m.claimedPaid)}</span>}>
         <Schedule q={b.quote} money={m}/>
         {b.payments.length > 0 && <div className="mt-3 text-xs">
           <p className="label !mb-1">Payments received</p>
           {b.payments.map((p, i) => <div key={i} className="flex justify-between py-1 border-b border-brand-sand last:border-0">
             <span>{fmtDate(p.paidOn, false)} · <span className="font-mono">{p.utr}</span></span>
-            <span>{inr2(p.amount)} {p.verified ? <span className="text-emerald-700 font-bold">✓</span> : <span className="text-amber-700">(verifying)</span>}</span></div>)}
+            <span>{inr2(p.amount)} <span className="text-emerald-700 font-bold">✓</span></span></div>)}
         </div>}
       </Section>
 

@@ -30,7 +30,7 @@ export function useCrm() {
 /** Does this booking need a human today? */
 export function needsAction(r: Row, today = todayIST()): string | null {
   if (["cancelled", "lost", "completed"].includes(r.stage)) return null;
-  if (r.m.pendingVerification > 0) return "Verify payment";
+  if (r.m.pendingVerification > 0) return "Collect screenshot";
   if (r.stage === "confirmed" && r.quote.lastDate < today && r.m.outstanding > 0.5) return "Event over · unpaid";
   if (r.m.installments.some(i => i.state === "overdue")) return "Overdue";
   if (r.stage === "confirmed" && r.m.nextDue?.dueDate && r.m.nextDue.dueDate <= today) return "Balance due";
@@ -57,7 +57,7 @@ export function flatten(r: Row, rc: RateCard, appUrl = location.origin) {
     "Standard value (incl GST)": q.standardTotal, "Discount (pre-GST)": q.discount, "Discount note": r.input.discountNote || "",
     "Taxable": q.taxable, "GST": q.gst, "Total (incl GST)": q.total, "Deposit": q.deposit, "Grand total": q.grandTotal,
     "Advance to be paid": q.advance, "Balance amount": q.balance, "Balance due date": q.balanceDueDate,
-    "Date of first payment": r.m.firstPaidOn || "", "Paid (verified)": r.m.verifiedPaid, "Awaiting verification": r.m.pendingVerification,
+    "Date of first payment": r.m.firstPaidOn || "", "Paid": r.m.claimedPaid, "Screenshot pending (₹)": r.m.pendingVerification,
     "Outstanding": Math.max(0, r.m.outstanding), "Last UTR": r.m.lastUtr || "", "Payments": pays.map(p => `${p.paidOn} ₹${p.amount} ${p.utr}${p.verified ? "" : " (unverified)"}`).join("; "),
     "Source": r.source, "Source detail": r.sourceDetail || "", "Heard from": r.heardFrom || "", "Assigned to": r.assignedTo || "", "Follow-up on": r.followUpOn || "",
     "Partner bank a/c name": r.partnerBank?.accountName || "", "Partner a/c no": r.partnerBank?.accountNo || "", "Partner IFSC": r.partnerBank?.ifsc || "",
@@ -74,7 +74,7 @@ export function exportXlsx(rows: Row[], rc: RateCard) {
   const ws = XLSX.utils.json_to_sheet(data);
   ws["!cols"] = Object.keys(data[0] || {}).map(k => ({ wch: Math.min(40, Math.max(10, k.length + 2)) }));
   XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-  const pays = rows.flatMap(r => Object.values(r.payments || {}).map(p => ({ "Ref": r.ref, "Name": r.name, "Paid on": p.paidOn, "Amount": p.amount, "UTR": p.utr, "Method": p.method, "Verified": p.verified ? "Yes" : "No", "Verified by": p.verifiedBy || "", "Entered by": p.source })));
+  const pays = rows.flatMap(r => Object.values(r.payments || {}).map(p => ({ "Ref": r.ref, "Name": r.name, "Paid on": p.paidOn, "Amount": p.amount, "UTR": p.utr, "Method": p.method, "Screenshot": p.proof ? "Uploaded" : p.verified ? "Checked (no image)" : "Pending", "Checked by": p.verifiedBy || "", "Entered by": p.source })));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pays.length ? pays : [{ Ref: "" }]), "Payments");
   XLSX.writeFile(wb, `LivingRoot_CRM_${todayIST()}.xlsx`);
 }

@@ -33,7 +33,7 @@ ${row("When", esc(describeWhen(b.input, rc)))}
 ${row("Type", TYPE_LABEL[b.input.type])}
 ${row("Quote no.", b.quoteNo)}
 ${row("Total (incl. GST)", inr2(b.quote.grandTotal), true)}
-${m ? row("Paid so far", inr2(m.verifiedPaid)) + row("Outstanding", inr2(Math.max(0, m.outstanding)), true) : ""}
+${m ? row("Paid so far", inr2(m.claimedPaid)) + row("Outstanding", inr2(Math.max(0, m.outstanding)), true) : ""}
 </table>`;
 }
 
@@ -102,14 +102,14 @@ ${summary(b, rc)}${b.requests ? `<p style="font-size:13px"><b>Requests:</b> ${es
   };
 }
 
-export function staffPaymentClaim(b: Booking, rc: RateCard, p: Payment, crm: string, conflict?: string) {
+export function staffPaymentClaim(b: Booking, rc: RateCard, p: Payment, crm: string, askLink: string, conflict?: string) {
   return {
-    subject: `💰 Verify ${inr(p.amount)} — ${b.name} (${b.ref}) UTR ${p.utr}`,
-    html: shell("Verify payment", `<p style="font-size:14px"><b>${esc(b.name)}</b> says they paid <b>${inr2(p.amount)}</b> on ${fmtDate(p.paidOn)}.<br>UPI ref / UTR: <b>${esc(p.utr)}</b></p>
+    subject: `📸 Collect screenshot — ${b.name} paid ${inr(p.amount)} (${b.ref})`,
+    html: shell("Payment received", `<p style="font-size:14px"><b>${esc(b.name)}</b> (${esc(b.phone)}) paid <b>${inr2(p.amount)}</b> on ${fmtDate(p.paidOn)} · UPI ref <b>${esc(p.utr)}</b>.<br>The booking is confirmed for the client.</p>
 ${conflict ? `<p style="background:#FDECEA;color:#8A1C1C;padding:10px;border-radius:8px;font-size:13px">⚠️ ${esc(conflict)}</p>` : ""}
-${summary(b, rc)}<p style="font-size:13px">Check the Yes Bank app / statement for this UTR, then tap Verify.</p>
-<p style="text-align:center;margin:20px 0">${btn(crm, "Verify in CRM")}</p>`, rc),
-    tg: `💰 <b>Payment to verify</b> ${b.ref}\n${esc(b.name)} — ${inr2(p.amount)}\nUTR <code>${esc(p.utr)}</code>${conflict ? `\n⚠️ ${esc(conflict)}` : ""}\n<a href="${crm}">Verify in CRM</a>`,
+${summary(b, rc)}<p style="font-size:13px"><b>Next:</b> ask the client for the payment screenshot on WhatsApp, check it against the Yes Bank app, and upload it on the booking in the CRM.</p>
+<p style="text-align:center;margin:20px 0">${btn(askLink, "Ask for screenshot")} &nbsp; ${btn(crm, "Open in CRM")}</p>`, rc),
+    tg: `📸 <b>Payment received</b> ${b.ref}\n${esc(b.name)} — ${inr2(p.amount)}\nUPI ref <code>${esc(p.utr)}</code>${conflict ? `\n⚠️ ${esc(conflict)}` : ""}\n<a href="${askLink}">Ask for screenshot</a> · <a href="${crm}">Upload in CRM</a>`,
   };
 }
 

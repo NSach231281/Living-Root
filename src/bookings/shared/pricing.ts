@@ -291,7 +291,8 @@ export function moneyStatus(b: Pick<Booking, "quote" | "payments">, today = toda
   const verifiedPaid = round2(verified.reduce((s, p) => s + (Number(p.amount) || 0), 0));
   const claimedPaid = round2(pays.reduce((s, p) => s + (Number(p.amount) || 0), 0));
   const pendingVerification = round2(claimedPaid - verifiedPaid);
-  let pool = verifiedPaid;
+  // A client's UPI reference counts as paid straight away (team collects the screenshot later).
+  let pool = claimedPaid;
   const installments = b.quote.schedule.map(inst => {
     const paid = round2(Math.min(inst.amount, Math.max(0, pool))); pool = round2(pool - paid);
     const due = round2(inst.amount - paid);
@@ -299,14 +300,14 @@ export function moneyStatus(b: Pick<Booking, "quote" | "payments">, today = toda
       due <= 0.5 ? "paid" : inst.dueDate && inst.dueDate < today ? "overdue" : paid > 0 ? "partial" : "unpaid";
     return { ...inst, paid, due, state };
   });
-  const outstanding = round2(b.quote.grandTotal - verifiedPaid);
+  const outstanding = round2(b.quote.grandTotal - claimedPaid);
   const status: MoneyStatus["status"] =
     outstanding < -0.5 ? "overpaid" : outstanding <= 0.5 ? "paid" :
-    pendingVerification > 0 ? "awaiting_verification" : verifiedPaid > 0 ? "partial" : "unpaid";
+    claimedPaid > 0 ? "partial" : "unpaid";
   const next = installments.find(i => i.state !== "paid");
   return {
     verifiedPaid, claimedPaid, outstanding, pendingVerification,
-    firstPaidOn: verified[0]?.paidOn, lastUtr: pays[pays.length - 1]?.utr, status, installments,
+    firstPaidOn: pays[0]?.paidOn, lastUtr: pays[pays.length - 1]?.utr, status, installments,
     nextDue: next ? { ...next, due: next.due } : undefined,
   };
 }
@@ -382,7 +383,7 @@ export const STAGE_LABEL: Record<string, string> = {
   enquiry: "New enquiry", quoted: "Quoted", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled", lost: "Lost",
 };
 export const PAY_LABEL: Record<string, string> = {
-  unpaid: "Unpaid", awaiting_verification: "Verify payment", partial: "Part-paid", paid: "Paid in full", overpaid: "Overpaid",
+  unpaid: "Unpaid", awaiting_verification: "Screenshot pending", partial: "Part-paid", paid: "Paid in full", overpaid: "Overpaid",
 };
 
 /** UPI intent for an amount — scanned by any UPI app. */

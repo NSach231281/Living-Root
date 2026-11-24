@@ -26,6 +26,8 @@ export const api = {
   update: (body: any) => call<{ booking: PublicBooking }>("update", { body }),
   addPayment: (body: any) => call<any>("addPayment", { body }),
   verify: (id: string, paymentId: string, verified = true, notify = true) => call<any>("verify", { body: { id, paymentId, verified, notify } }),
+  uploadProof: (id: string, paymentId: string, image: string) => call<any>("uploadProof", { body: { id, paymentId, image } }),
+  getProof: (id: string, paymentId: string) => call<{ image: string; at: number; by: string }>("getProof", { body: { id, paymentId } }),
   deletePayment: (id: string, paymentId: string) => call<any>("deletePayment", { body: { id, paymentId } }),
   remind: (id: string) => call<any>("remind", { body: { id } }),
   devList: () => call<Record<string, any>>("devList"),
@@ -39,4 +41,19 @@ export function waLink(phone: string, text: string) {
   if (d.length === 10) d = "91" + d;
   if (d.length === 11 && d.startsWith("0")) d = "91" + d.slice(1);
   return `https://wa.me/${d}?text=${encodeURIComponent(text)}`;
+}
+
+/** Shrinks a photo/screenshot to ≤1200px JPEG (~100–200 KB) before upload. */
+export function compressImage(file: File, max = 1200, quality = 0.72): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That file isn't an image we can read")); };
+    img.src = url;
+  });
 }

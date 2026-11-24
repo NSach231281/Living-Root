@@ -25,7 +25,7 @@ export function waNumber(phone: string): string {
 /** Template bodies, for reference and for the dev outbox. Keep in sync with WhatsApp Manager. */
 export const TEMPLATES: Record<string, string> = {
   lr_quote:           "Hi {{1}}, thank you for choosing Living Roots! Your quote for {{2}} on {{3}} is ₹{{4}} including GST. Pay the advance of ₹{{5}} to block your date: {{6}}",
-  lr_payment_received:"Hi {{1}}, we have received your payment details of ₹{{2}} for booking {{3}}. Your slot is on hold while we confirm the payment with our bank.",
+  lr_payment_received:"Hi {{1}}, thank you! We have received your payment of ₹{{2}} for your Living Roots booking {{3}}.",
   lr_booking_confirmed:"Hi {{1}}, your booking {{2}} at Living Roots on {{3}} is confirmed. Paid so far: ₹{{4}}. Balance: ₹{{5}}, due {{6}}. Booking details: {{7}}",
   lr_balance_due:     "Hi {{1}}, a reminder from Living Roots: the balance of ₹{{2}} for {{3}} on {{4}} is due today. Pay here: {{5}}",
   lr_payment_overdue: "Hi {{1}}, the payment of ₹{{2}} for your Living Roots booking {{3}} was due on {{4}} and is still pending. Pay here: {{5}}",

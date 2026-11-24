@@ -152,7 +152,7 @@ export default function Reconcile() {
             <tr key={r.id} onClick={() => nav(`/crm?b=${r.id}`)} className={`border-t border-brand-sand cursor-pointer hover:bg-brand-bone ${r.m.outstanding > 0.5 ? "bg-red-50/60" : ""}`}>
               <td className="p-2 whitespace-nowrap">{fmtDate(r.quote.lastDate, false)}</td>
               <td className="p-2"><b>{r.ref}</b> {r.name}<div className="text-xs text-brand-muted">{r.title}</div></td>
-              <td className="p-2 text-right">{inr(r.quote.grandTotal)}</td><td className="p-2 text-right">{inr(r.m.verifiedPaid)}</td>
+              <td className="p-2 text-right">{inr(r.quote.grandTotal)}</td><td className="p-2 text-right">{inr(r.m.claimedPaid)}</td>
               <td className={`p-2 text-right font-bold ${r.m.outstanding > 0.5 ? "text-red-700" : "text-emerald-700"}`}>{r.m.outstanding > 0.5 ? inr(r.m.outstanding) : "✓ 0"}</td>
               <td className="p-2"><Pill cls={PAY_PILL[r.m.status]}>{PAY_LABEL[r.m.status]}</Pill></td>
             </tr>))}
